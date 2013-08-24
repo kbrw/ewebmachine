@@ -60,23 +60,26 @@ defmodule Ewebmachine do
 
   defmodule Sup do
     use Supervisor.Behaviour
-    def start_link, do: :supervisor.start_link(__MODULE__,[])
-    def init([]), do: supervise [spec], strategy: :one_for_one
-    def spec do
-      conf = [ip: :application.get_env(:ewebmachine,:ip,'0.0.0.0'),
-              port: :application.get_env(:ewebmachine,:port,7272),
-              log_dir: :application.get_env(:ewebmachine,:log_dir,'priv/log'),
-              dispatch: List.flatten(Enum.map(:application.get_env(:ewebmachine,:routes,[]), fn m->m.routes end))]
-      worker(:webmachine_mochiweb,[conf],[function: :start])
+    def start_link(conf), do: :supervisor.start_link(__MODULE__,conf)
+    def init(conf) do
+      defaultconf = [ip: '0.0.0.0',port: 8080, log_dir: 'priv/log', 
+         dispatch: List.flatten(Enum.map(conf[:modules], fn m->m.routes end))]
+      supervise([
+        worker(:webmachine_mochiweb,[defaultconf |> ListDict.merge(ListDict.delete(conf,:modules))], function: :start),
+        worker(__MODULE__,[], restart: :temporary, function: :set_debug)
+      ], strategy: :one_for_one)
+    end
+    def set_debug do
+      {:ok,Process.spawn_link(fn -> 
+        if Mix.env==:dev, do: :wmtrace_resource.add_dispatch_rule('debug',:application.get_env(:ewebmachine,:trace_dir,'/tmp'))
+      end)}
     end
   end
 
   defmodule App do
     use Application.Behaviour
     def start(_type,_args) do
-       r=Ewebmachine.Sup.start_link()
-       if Mix.env==:dev, do: :wmtrace_resource.add_dispatch_rule('debug',:application.get_env(:ewebmachine,:trace_dir,'/tmp'))
-       r
+       Ewebmachine.Sup.start_link(:application.get_all_env(:ewebmachine) |> ListDict.delete(:included_applications))
     end
   end
 end

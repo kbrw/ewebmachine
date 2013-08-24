@@ -32,24 +32,24 @@ corresponding to the resources declared in MyApp1.
 
 Ewebmachine.Sup is a default supervisor for web application, it
 launches mochiweb configured to use webmachine with the following
-configuration :
+configuration options (`start_link` dictlist parameter):
 
-* *listen ip* : environment variable {:ewebmachine, :ip} or "0.0.0.0"
-* *listen port* : environment variable {:ewebmachine, :port} or 7272
-* *log_dir* : environment variable {:ewebmachine, :port} or "priv/log"
-* *dispatch* :
-  environment variable {:ewebmachine, :routes} lists the
-  ewebmachine module routes to be include
+* *listen ip* : default to "0.0.0.0"
+* *listen port* : default to 7272
+* *log_dir* : default to "priv/log"
+* *dispatch* : lists the ewebmachine module routes to be include, mandatory
 
 ## Default Application ##
 
 Ewebmachine.App is a default OTP application for web application,
-it launches only the default supervisor Ewebmachine.Sup.
+it launches only the default supervisor Ewebmachine.Sup, with parameters defined
+by the ewebmachine application environment.
 
 ## Initial State ##
 
 An initial state (which is used in webmachine "init" function)
-can be declared with `ini`.
+can be declared with `ini`, the default one is a list (because of the resource
+        function response shortut described below)
 
     resource [] do
       ini [:init]
@@ -61,7 +61,7 @@ The trace mode is activated for every resources when executed in
 Mix *dev* environment. Traces are stored in directory defined by
 `{:webmachine,:trace_dir}` if defined, else in `/tmp`.
 
-Default Application add the `/debug` route to access the
+Default Supervisor add the `/debug` route to access the
 webmachine traces in *dev* environment.
 
 ## Resource Functions ##
@@ -72,14 +72,31 @@ body-producing function must start with `to_*` or
 ReqData and Context parameters declaration, which are implicitly
 declared as variable `\_req` and `_ctx`.
 
-The resource functions response is wrap so that you can omit
-context and reqdata if they did not change.
+###  Resource functions response shortcuts ###
+
+The resource functions response is wrap so that you replace the standard
+{res,req,ctx} webmachine response by :
+
+* `res` is a shortcut to `{res,_req,_ctx}`
+* `pass(res, opt1: value1, opt2: value2)` is a shortcut to
+  `{res,_req,updated_ctx}` where `updated_ctx` is the listdict merge between
+  old listdict state and keywords arguments (opt1,opt2 here), works only if
+  `_ctx` is a dictlist
 
 So for instance, the following resource functions are equivalent :
 
     resource_exists, do: true
- 
     resource_exists, do: {true,_req,_ctx}
+
+And you can transmit some variable in the context like this :
+
+    resource ['user',:name] do
+      resource_exists do
+         user = User.get(:wrq.path_info(:name,_req))
+         pass user != nil, user: user
+      end
+      to_html do: (_ctx[:user] |> template("user_template"))
+    end
 
 ## Example usage ##
 

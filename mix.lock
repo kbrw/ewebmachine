@@ -1,2 +1,2 @@
-[ "mochiweb": {:git,"git://github.com/basho/mochiweb","5e6e3e688dc9987a97e261431256e29671555c0b",[tag: "1.5.1p6"]},
-  "webmachine": {:git,"git://github.com/basho/webmachine.git","bcd0b3eee3bd03359f6295b94954553717474052",[]} ]
+[ "mochiweb": {:git, "git://github.com/basho/mochiweb", "5e6e3e688dc9987a97e261431256e29671555c0b", [{:tag, "1.5.1p6"}]},
+  "webmachine": {:git, "git://github.com/basho/webmachine.git", "bcd0b3eee3bd03359f6295b94954553717474052", [{:branch, "1.10"}]} ]
