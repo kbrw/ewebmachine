@@ -22,7 +22,7 @@ defmodule Ewebmachine do
       defmodule modulename do
         unquote(wm_wrap(code))
         def ping(rq,s), do: {:pong,rq,s}
-        def init([]), do: {unquote(Mix.env==:dev && {:trace,:application.get_env(:ewebmachine,:trace_dir,'/tmp')}||:ok),@ctx}
+        def init([]), do: {unquote(Mix.env==:dev && {:trace,:application.get_env(:ewebmachine,:trace_dir,'/tmp')}||:ok),@ctx||[]}
         defp wrap_reponse({_,_,_}=tuple,_,_), do: tuple
         defp wrap_reponse({r,newstate},rq,state), do: {r,rq,ListDict.merge(state,newstate)}
         defp wrap_reponse(r,rq,state), do: {r,rq,state}
