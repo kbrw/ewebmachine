@@ -8,8 +8,7 @@ defmodule Ewebmachine.Mixfile do
   end
 
   def application do
-    [ mod: { Ewebmachine.App,[] },
-      applications: [:webmachine],
+    [ applications: [:webmachine],
       env: [
         ip: '0.0.0.0',
         port: '9001',
