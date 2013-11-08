@@ -24,9 +24,9 @@ defmodule Ewebmachine do
         def ping(rq,s), do: {:pong,rq,s}
         def init([]), do: {unquote(Mix.env==:dev && {:trace,:application.get_env(:ewebmachine,:trace_dir,'/tmp')}||:ok),@ctx||[]}
         defp wrap_reponse({_,_,_}=tuple,_,_), do: tuple
-        defp wrap_reponse({r,newstate},rq,state), do: {r,rq,ListDict.merge(state,newstate)}
+        defp wrap_reponse({:dictstate,r,newstate},rq,state), do: {r,rq,ListDict.merge(state,newstate)}
         defp wrap_reponse(r,rq,state), do: {r,rq,state}
-        defp pass(r,update_state), do: {r,update_state}
+        defp pass(r,update_state), do: {:dictstate,r,update_state}
       end
       @routes [{unquote(route),modulename,[]}|@routes]
     end
@@ -75,13 +75,6 @@ defmodule Ewebmachine do
       {:ok,Process.spawn_link(fn -> 
         if Mix.env==:dev, do: :wmtrace_resource.add_dispatch_rule('debug',:application.get_env(:ewebmachine,:trace_dir,'/tmp'))
       end)}
-    end
-  end
-
-  defmodule App do
-    use Application.Behaviour
-    def start(_type,_args) do
-       Ewebmachine.Sup.start_link(:application.get_all_env(:ewebmachine) |> ListDict.delete(:included_applications))
     end
   end
 end
