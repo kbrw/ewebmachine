@@ -43,7 +43,7 @@ defmodule Ewebmachine do
   defp wm_format_conv(_), do: false
 
   defp wm_wrap({:__block__,meta,blocks}),do: 
-    {:__block__,meta,Enum.map(blocks,wm_wrap(&1))}
+    {:__block__,meta,Enum.map(blocks,&wm_wrap(&1))}
   defp wm_wrap({name,_,[[do: code]]}=block) do
     if wm_fun(name) or wm_format_conv(atom_to_binary(name)) do
       quote do
