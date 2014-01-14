@@ -1,2 +1,4 @@
-[ "mochiweb": {:git, "git://github.com/basho/mochiweb", "5e6e3e688dc9987a97e261431256e29671555c0b", [{:tag, "1.5.1p6"}]},
-  "webmachine": {:git, "git://github.com/basho/webmachine.git", "bcd0b3eee3bd03359f6295b94954553717474052", [{:branch, "1.10"}]} ]
+[ "ibrowse": {:git, "git://github.com/cmullaparthi/ibrowse.git", "9b8b042fb7d37b90994ef6b6615c92dd2769328e", [{:tag, "v4.0.1"}]},
+  "meck": {:git, "git://github.com/basho/meck.git", "2b25a30a8688f94106d07f23a9f1fb523ac00f08", [{:tag, "0.8.1"}]},
+  "mochiweb": {:git, "git://github.com/basho/mochiweb.git", "5e6e3e688dc9987a97e261431256e29671555c0b", [{:tag, "1.5.1p6"}]},
+  "webmachine": {:git, "git://github.com/basho/webmachine.git", "e5f82336bb7a4552dd33e02bf8f66e67547f13be", [{:tag, "1.10.5"}]} ]
