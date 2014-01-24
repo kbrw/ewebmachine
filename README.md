@@ -9,19 +9,21 @@ https://github.com/basho/webmachine
 Resources module are grouped into a module which has to use
 Ewebmachine.
 
-    defmodule MyApp1 do
-      use Ewebmachine
+```elixir
+defmodule MyApp1 do
+  use Ewebmachine
 
-      resource ['hello',:name] do
-        to_html do:
-          """
-          <html>
-            <body>
-              <h1> Hello #{:wrq.path_info(:name,_req)} </h1>
-            </body>
-          </html>
-          """
-      end
+  resource ['hello',:name] do
+    to_html do:
+      """
+      <html>
+        <body>
+          <h1> Hello #{:wrq.path_info(:name,_req)} </h1>
+        </body>
+      </html>
+      """
+  end
+```
 
 Each "resource" declares a webmachine resource module. The
 resource takes the route as a parameter, so that 
@@ -51,9 +53,11 @@ An initial state (which is used in webmachine "init" function)
 can be declared with `ini`, the default one is a list (because of the resource
         function response shortut described below)
 
-    resource [] do
-      ini [:init]
-    end
+```elixir
+resource [] do
+  ini [:init]
+end
+```
 
 ## Webmachine debug mode ##
 
@@ -85,66 +89,71 @@ The resource functions response is wrap so that you replace the standard
 
 So for instance, the following resource functions are equivalent :
 
-    resource_exists, do: true
-    resource_exists, do: {true,_req,_ctx}
+```elixir
+resource_exists, do: true
+resource_exists, do: {true,_req,_ctx}
+```
 
 And you can transmit some variable in the context like this :
 
-    resource ['user',:name] do
-      resource_exists do
-         user = User.get(:wrq.path_info(:name,_req))
-         pass user != nil, user: user
-      end
-      to_html do: (_ctx[:user] |> template("user_template"))
-    end
+```elixir
+resource ['user',:name] do
+  resource_exists do
+     user = User.get(:wrq.path_info(:name,_req))
+     pass user != nil, user: user
+  end
+  to_html do: (_ctx[:user] |> template("user_template"))
+end
+```
 
 ## Example usage ##
 
 Declare two ewebmachine module : 
 
+```elixir
+defmodule WebMain do
+  use Ewebmachine
 
-    defmodule WebMain do
-      use Ewebmachine
+  resource [] do
+    to_html, do: "<html><body>Hello world</body>"
+  end
 
-      resource [] do
-        to_html, do: "<html><body>Hello world</body>"
-      end
-
-      resource['sitemap'] do
-        content_types_provided, do: ['application/xml': to_xml]
-        to_xml do
-          """
-          <?xml version="1.0" encoding="UTF-8"?>
-          <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-          <url>
-              <loc>http://mon-domaine.fr/</loc>
-              <lastmod>2012-12-15</lastmod>
-              <changefreq>daily</changefreq>
-              <priority>1</priority>
-          </url>
-          </urlset>
-          """
-        end
-      end
+  resource['sitemap'] do
+    content_types_provided, do: ['application/xml': to_xml]
+    to_xml do
+      """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url>
+          <loc>http://mon-domaine.fr/</loc>
+          <lastmod>2012-12-15</lastmod>
+          <changefreq>daily</changefreq>
+          <priority>1</priority>
+      </url>
+      </urlset>
+      """
     end
+  end
+end
 
-    defmodule WebContact do
-      use Ewebmachine
+defmodule WebContact do
+  use Ewebmachine
 
-      resource ['contact'] do
-        to_html, do: "<html><body>contact page</body>"
-      end
-    end
-
+  resource ['contact'] do
+    to_html, do: "<html><body>contact page</body>"
+  end
+end
+```
 
 Then create an OTP application that launches mochiweb with the
 webmain and webcontact routes :
 
-    def application do
-      [ mod: { Ewebmachine.App,[] },
-        applications: [:webmachine],
-        env: [ip: '0.0.0.0',
-              port: 7171,
-              routes: [WebMain,WebContact]] ]
-    end
-
+```elixir
+def application do
+  [ mod: { Ewebmachine.App,[] },
+    applications: [:webmachine],
+    env: [ip: '0.0.0.0',
+          port: 7171,
+          routes: [WebMain,WebContact]] ]
+end
+```
