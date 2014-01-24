@@ -4,7 +4,7 @@ defmodule Ewebmachine.Mixfile do
   def project do
     [ app: :ewebmachine,
       version: "0.0.2",
-      deps: [{:webmachine,">= 1.10",git: "git://github.com/basho/webmachine.git", branch: "1.10"}] ]
+      deps: [{:webmachine,">= 1.10",git: "git://github.com/basho/webmachine.git", tag: "1.10.5"}] ]
   end
 
   def application do
