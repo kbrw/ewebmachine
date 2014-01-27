@@ -39,13 +39,7 @@ configuration options (`start_link` dictlist parameter):
 * *listen ip* : default to "0.0.0.0"
 * *listen port* : default to 7272
 * *log_dir* : default to "priv/log"
-* *dispatch* : lists the ewebmachine module routes to be include, mandatory
-
-## Default Application ##
-
-Ewebmachine.App is a default OTP application for web application,
-it launches only the default supervisor Ewebmachine.Sup, with parameters defined
-by the ewebmachine application environment.
+* *modules* : lists the ewebmachine module routes to be include, mandatory
 
 ## Initial State ##
 
@@ -145,15 +139,19 @@ defmodule WebContact do
 end
 ```
 
-Then create an OTP application that launches mochiweb with the
-webmain and webcontact routes :
+Then to launch the webserver, add the supervisor in your App tree with the
+Ewebmachine.Sup.start_link functions. You can configure here the port/ip and
+the ewebmachine modules to be included.
 
 ```elixir
-def application do
-  [ mod: { Ewebmachine.App,[] },
-    applications: [:webmachine],
-    env: [ip: '0.0.0.0',
-          port: 7171,
-          routes: [WebMain,WebContact]] ]
+defmodule MySup do
+  use Supervisor.Behaviour
+  def start_link, do: :supervisor.start_link({:local,__MODULE__},__MODULE__,[])
+  def init([]) do
+    supervise([
+      supervisor(Ewebmachine.Sup,[[modules: [WebMain,WebContact],port: 8080]]),
+      supervisor(MyOtherSup,[])
+    ], strategy: :one_for_one)
+  end
 end
 ```
