@@ -84,8 +84,8 @@ The resource functions response is wrap so that you replace the standard
 So for instance, the following resource functions are equivalent :
 
 ```elixir
-resource_exists, do: true
-resource_exists, do: {true,_req,_ctx}
+resource_exists do: true
+resource_exists do: {true,_req,_ctx}
 ```
 
 And you can transmit some variable in the context like this :
@@ -109,11 +109,11 @@ defmodule WebMain do
   use Ewebmachine
 
   resource [] do
-    to_html, do: "<html><body>Hello world</body>"
+    to_html do: "<html><body>Hello world</body>"
   end
 
   resource['sitemap'] do
-    content_types_provided, do: ['application/xml': to_xml]
+    content_types_provided do: ['application/xml': :to_xml]
     to_xml do
       """
       <?xml version="1.0" encoding="UTF-8"?>
@@ -134,7 +134,7 @@ defmodule WebContact do
   use Ewebmachine
 
   resource ['contact'] do
-    to_html, do: "<html><body>contact page</body>"
+    to_html do: "<html><body>contact page</body>"
   end
 end
 ```
