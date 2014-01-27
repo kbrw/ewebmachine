@@ -20,11 +20,12 @@ defmodule Ewebmachine do
     quote do
       modulename = "#{__MODULE__}#{@routes|>length}" |> binary_to_atom
       defmodule modulename do
+        @ctx nil
         unquote(wm_wrap(code))
         def ping(rq,s), do: {:pong,rq,s}
         def init([]), do: {unquote(Mix.env==:dev && {:trace,:application.get_env(:ewebmachine,:trace_dir,'/tmp')}||:ok),@ctx||[]}
-        defp wrap_reponse({_,_,_}=tuple,_,_), do: tuple
         defp wrap_reponse({:dictstate,r,newstate},rq,state), do: {r,rq,ListDict.merge(state,newstate)}
+        defp wrap_reponse({_,_,_}=tuple,_,_), do: tuple
         defp wrap_reponse(r,rq,state), do: {r,rq,state}
         defp pass(r,update_state), do: {:dictstate,r,update_state}
       end
