@@ -113,7 +113,7 @@ defmodule WebMain do
   end
 
   resource['sitemap'] do
-    content_types_provided do: ['application/xml': :to_xml]
+    content_types_provided do: [{'application/xml',:to_xml}]
     to_xml do
       """
       <?xml version="1.0" encoding="UTF-8"?>
