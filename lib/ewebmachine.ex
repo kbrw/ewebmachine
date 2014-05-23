@@ -66,7 +66,7 @@ defmodule Ewebmachine do
     def start_link(conf), do: :supervisor.start_link(__MODULE__,conf)
     def name_of(conf), do: :"wm_#{inspect conf[:ip]}_#{conf[:port]}"
     def init(conf) do
-      defaultconf = [name: name_of(conf), ip: '0.0.0.0',port: 8080, log_dir: 'priv/log', 
+      defaultconf = [dispatch_group: name_of(conf), name: name_of(conf), ip: '0.0.0.0',port: 8080, log_dir: 'priv/log', 
          dispatch: List.flatten(Enum.map(conf[:modules], fn m->m.routes end))]
       supervise([
         worker(:webmachine_mochiweb,[defaultconf |> Keyword.merge(Keyword.delete(conf,:modules))], function: :start),
