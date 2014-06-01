@@ -155,3 +155,43 @@ defmodule MySup do
   end
 end
 ```
+
+##  Example Configuration
+
+As configuration of `Ewebmachine.Sup` is passed "as is" to
+`webmachine_mochiweb` then to `mochiweb_socket`, you can configure your entire
+configuration as you wish when launching the supervisors.
+
+Below an example configuration : listen HTTP on 0.0.0.0:80 and ::80 with a
+redirect handler => https://samehost/samepath
+then listen HTTPS on 0.0.0.0:443 and ::443 with applications handlers.
+
+```elixir
+defmodule SSLRedirect do
+  use Ewebmachine
+  resource [:*] do
+    resource_exists do: false
+    previously_existed do: true
+    moved_permanently do:
+      {true,'https://#{hostname(_req)}#{:wrq.raw_path(_req)}'}
+    defp hostname(req), do:
+      "#{:wrq.get_req_header('host',req)}"|>String.split(":")|>Enum.at(0)
+  end
+end
+defmodule MySup do
+  use Supervisor.Behaviour
+  def start_link, do: :supervisor.start_link({:local,__MODULE__},__MODULE__,[])
+  def init([]) do
+    http = [{"0.0.0.0",80},{"::",80}]
+    https = [{"0.0.0.0","/etc/certs/my.crt","/etc/certs/my.pem"},{"::","/etc/certs/my.crt","/etc/certs/my.pem"}]
+    supervise(
+        (http|>Enum.map(fn {ip,port}-> 
+          supervisor(Ewebmachine.Sup,[[modules: [SSLRedirect],ip: '#{ip}', port: port ]],id: :"web#{inspect ip}#{port}")
+        end))++
+        (https|>Enum.map(fn {ip,cert,key}-> 
+          supervisor(Ewebmachine.Sup,[[modules: [WebMain,WebContact],ip: '#{ip}', port: 443, ssl: true, ssl_opts: [certfile: '#{cert}', keyfile: '#{key}']]],id: :"web#{inspect ip}443")
+        end))
+      ], strategy: :one_for_all)
+  end
+end
+```
