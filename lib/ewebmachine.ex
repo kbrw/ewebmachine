@@ -75,7 +75,7 @@ defmodule Ewebmachine do
     end
 
     def set_debug do
-      {:ok,Process.spawn_link(fn -> 
+      {:ok,spawn_link(fn -> 
         unquote(if Mix.env==:dev do quote do 
           :wmtrace_resource.add_dispatch_rule('debug',:application.get_env(:ewebmachine,:trace_dir,'/tmp'))
         end end)
