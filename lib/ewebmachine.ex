@@ -18,7 +18,7 @@ defmodule Ewebmachine do
   end
   defmacro resource(route,[do: code]) do
     quote do
-      modulename = "#{__MODULE__}#{@routes|>length}" |> binary_to_atom
+      modulename = :"#{__MODULE__}#{@routes|>length}"
       defmodule modulename do
         @ctx nil
         unquote(wm_wrap(code))
@@ -46,7 +46,7 @@ defmodule Ewebmachine do
   defp wm_wrap({:__block__,meta,blocks}),do: 
     {:__block__,meta,Enum.map(blocks,&wm_wrap(&1))}
   defp wm_wrap({name,_,[[do: code]]}=block) do
-    if wm_fun(name) or wm_format_conv(atom_to_binary(name)) do
+    if wm_fun(name) or wm_format_conv(Atom.to_string(name)) do
       quote do
         def unquote(name)(unquote({:_req,[],nil}),unquote({:_ctx,[],nil})) do
           (
