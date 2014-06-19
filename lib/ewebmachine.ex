@@ -62,7 +62,7 @@ defmodule Ewebmachine do
   defp wm_wrap(code),do: code
 
   defmodule Sup do
-    use Supervisor.Behaviour
+    use Supervisor
     def start_link(conf), do: :supervisor.start_link(__MODULE__,conf)
     def name_of(conf), do: :"wm_#{inspect conf[:ip]}_#{conf[:port]}"
     def init(conf) do
