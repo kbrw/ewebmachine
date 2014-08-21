@@ -66,20 +66,14 @@ defmodule Ewebmachine do
     def start_link(conf), do: :supervisor.start_link(__MODULE__,conf)
     def name_of(conf), do: :"wm_#{inspect conf[:ip]}_#{conf[:port]}"
     def init(conf) do
+      debug_route = unquote( if Mix.env==:dev do 
+          quote do [{['debug',:*],:wmtrace_resource,[{:trace_dir,:application.get_env(:ewebmachine,:trace_dir,'/tmp')}]}] end
+        else [] end)
       defaultconf = [dispatch_group: name_of(conf), name: name_of(conf), ip: '0.0.0.0',port: 8080, log_dir: 'priv/log', 
-         dispatch: List.flatten(Enum.map(conf[:modules], fn m->m.routes end))]
+         dispatch: List.flatten(Enum.map(conf[:modules], fn m->m.routes end))++debug_route]
       supervise([
-        worker(:webmachine_mochiweb,[defaultconf |> Keyword.merge(Keyword.delete(conf,:modules))], function: :start),
-        worker(__MODULE__,[], restart: :temporary, function: :set_debug)
+        worker(:webmachine_mochiweb,[defaultconf |> Keyword.merge(Keyword.delete(conf,:modules))], function: :start)
       ], strategy: :one_for_one)
-    end
-
-    def set_debug do
-      {:ok,spawn_link(fn -> 
-        unquote(if Mix.env==:dev do quote do 
-          :wmtrace_resource.add_dispatch_rule('debug',:application.get_env(:ewebmachine,:trace_dir,'/tmp'))
-        end end)
-      end)}
     end
   end
 end
