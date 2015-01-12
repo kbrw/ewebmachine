@@ -4,7 +4,10 @@ defmodule Ewebmachine.Mixfile do
   def project do
     [ app: :ewebmachine,
       version: "1.0.0",
-      deps: [{:plug, []},{:cowboy,[]}],
+      deps: [
+        {:plug, []},
+        {:cowboy, "~> 1.0", optional: true}
+      ],
 
       description: """
         Ewebmachine is a very simple Elixir DSL around Webmachine

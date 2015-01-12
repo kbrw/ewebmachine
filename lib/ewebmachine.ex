@@ -1,79 +1,84 @@
-defmodule Ewebmachine do
-  defmacro __before_compile__(_env) do
-    quote do
-      def routes, do: @routes |> Enum.reverse
-    end
-  end
-  defmacro __using__(_opts) do
-    quote do
-      import Ewebmachine
-      @before_compile Ewebmachine
-      @routes []
-    end
-  end
-  defmacro ini(ini_ctx) do
-    quote do 
-      @ctx unquote(ini_ctx)
-    end
-  end
-  defmacro resource(route,[do: code]) do
-    quote do
-      modulename = :"#{__MODULE__}#{@routes|>length}"
-      defmodule modulename do
-        @ctx nil
-        unquote(wm_wrap(code))
-        def ping(rq,s), do: {:pong,rq,s}
-        def init([]), do: {unquote(Mix.env==:dev && {:trace,:application.get_env(:ewebmachine,:trace_dir,'/tmp')}||:ok),@ctx||[]}
-        defp wrap_reponse({:dictstate,r,newstate},rq,state), do: {r,rq,Keyword.merge(state,newstate)}
-        defp wrap_reponse({_,_,_}=tuple,_,_), do: tuple
-        defp wrap_reponse(r,rq,state), do: {r,rq,state}
-        defp pass(r,update_state), do: {:dictstate,r,update_state}
-      end
-      @routes [{unquote(route),modulename,[]}|@routes]
-    end
-  end
-
-  defp wm_fun(name), do:
-    name in [:resource_exists,:service_available,:is_authorized,:forbidden,:allow_missing_post,:malformed_request,
-        :base_uri,:uri_too_long,:known_content_type,:valid_content_headers,:valid_entity_length,:options,:allowed_methods,
-        :delete_resource,:delete_completed,:post_is_create,:create_path,:process_post,:content_types_provided,
-        :content_types_accepted,:charsets_provided,:encodings_provided,:variances,:is_conflict,:multiple_choices,
-        :previously_existed,:moved_permanently,:moved_temporarily,:last_modified,:expires,:generate_etag,:finish_request]
-  defp wm_format_conv("to_"<>_), do: true
-  defp wm_format_conv("from_"<>_), do: true
-  defp wm_format_conv(_), do: false
-
-  defp wm_wrap({:__block__,meta,blocks}),do: 
-    {:__block__,meta,Enum.map(blocks,&wm_wrap(&1))}
-  defp wm_wrap({name,_,[[do: code]]}=block) do
-    if wm_fun(name) or wm_format_conv(Atom.to_string(name)) do
-      quote do
-        def unquote(name)(unquote({:_req,[],nil}),unquote({:_ctx,[],nil})) do
-          (
-             unquote(code)
-          )|>
-          wrap_reponse(unquote({:_req,[],nil}),unquote({:_ctx,[],nil}))
-        end
-      end
-    else
-        block
-    end
-  end
-  defp wm_wrap(code),do: code
-
-  defmodule Sup do
-    use Supervisor
-    def start_link(conf), do: :supervisor.start_link(__MODULE__,conf)
-    def name_of(conf), do: :"wm_#{inspect conf[:ip]}_#{conf[:port]}"
-    def init(conf) do
-      debug_route = unquote( if Mix.env==:dev do 
-          quote do [{['debug',:*],:wmtrace_resource,[{:trace_dir,:application.get_env(:ewebmachine,:trace_dir,'/tmp')}]}] end
-        else [] end)
-      defaultconf = [dispatch_group: name_of(conf), name: name_of(conf), ip: '0.0.0.0',port: 8080, log_dir: 'priv/log', 
-         dispatch: List.flatten(Enum.map(conf[:modules], fn m->m.routes end))++debug_route]
-      supervise([
-        worker(:webmachine_mochiweb,[defaultconf |> Keyword.merge(Keyword.delete(conf,:modules))], function: :start)
-      ], strategy: :one_for_one)
-    end
-  end
+defmodule Ewebmachine.Default do
+  def service_available(conn,state), do:
+    {true,conn,state}
+  def resource_exists(conn,state), do:
+    {true,conn,state}
+  def auth_required(conn,state), do:
+    {true,conn,state}
+  def is_authorized(conn,state), do:
+    {true,conn,state}
+  def forbidden(conn,state), do:
+    {false,conn,state}
+  def allow_missing_post(conn,state), do:
+    {false,conn,state}
+  def malformed_request(conn,state), do:
+    {false,conn,state}
+  def uri_too_long(conn,state), do:
+    {false,conn,state}
+  def known_content_type(conn,state), do:
+    {true,conn,state}
+  def valid_content_headers(conn,state), do:
+    {true,conn,state}
+  def valid_entity_length(conn,state), do:
+    {true,conn,state}
+  def options(conn,state), do:
+    {[],conn,state}
+  def allowed_methods(conn,state), do:
+    {["GET", "HEAD"],conn,state}
+  def known_methods(conn,state), do:
+    {["GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT", "OPTIONS"],conn,state}
+  def content_types_provided(conn,state), do:
+    {[{"text/html", :to_html}],conn,state}
+  def content_types_accepted(conn,state), do:
+    {[],conn,state}
+  def delete_resource(conn,state), do:
+    {false,conn,state}
+  def delete_completed(conn,state), do:
+    {true,conn,state}
+  def post_is_create(conn,state), do:
+    {false,conn,state}
+  def create_path(conn,state), do:
+    {nil,conn,state}
+  def base_uri(conn,state), do:
+    {nil,conn,state}
+  def process_post(conn,state), do:
+    {false,conn,state}
+  def language_available(conn,state), do:
+    {true,conn,state}
+  def charsets_provided(conn,state), do:
+    {:no_charset,conn,state}
+  ## this atom causes charset-negotation to short-circuit
+  ## the default setting is needed for non-charset responses such as image/png
+  ##    an example of how one might do actual negotiation
+  ##    [{"iso-8859-1", fun(X) -> X end}, {"utf-8", make_utf8}];
+  def encodings_provided(conn,state), do:
+    {[{"identity", &(&1)}],conn,state}
+  # this is handy for auto-gzip of GET-only resources:
+  #    [{"identity", fun(X) -> X end}, {"gzip", fun(X) -> zlib:gzip(X) end}];
+  def variances(conn,state), do:
+    {[],conn,state}
+  def is_conflict(conn,state), do:
+    {false,conn,state}
+  def multiple_choices(conn,state), do:
+    {false,conn,state}
+  def previously_existed(conn,state), do:
+    {false,conn,state}
+  def moved_permanently(conn,state), do:
+    {false,conn,state}
+  def moved_temporarily(conn,state), do:
+    {false,conn,state}
+  def last_modified(conn,state), do:
+    {nil,conn,state}
+  def expires(conn,state), do:
+    {nil,conn,state}
+  def generate_etag(conn,state), do:
+    {nil,conn,state}
+  def finish_request(conn,state), do:
+    {true,conn,state}
+  def validate_content_checksum(conn,state), do:
+    {:not_validated,conn,state}
+  def to_html(conn,state), do:
+    {"",conn,state}
+  def ping(conn,state), do:
+    {:pang,conn,state}
 end
