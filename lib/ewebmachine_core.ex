@@ -115,17 +115,17 @@ defmodule Ewebmachine.Core do
     charset = (char=h(get_metadata(:'chosen-charset'))) && "; charset=#{char}" || ""
     h(set_resp_header("Content-Type",ctype<>charset))
     case h(get_header_val("accept-encoding")) do
-      nil -> h(decision_test(choose_encoding("identity;q=1.0,*;q=0.5"),nil, 406, :v3g7))
+      nil -> h(decision_test(h(choose_encoding("identity;q=1.0,*;q=0.5")),nil, 406, :v3g7))
       _ -> d(v3f7)
     end
   end
   ## Acceptable encoding available?
   decision v3f7, do:
-    h(decision_test(choose_encoding(h(get_header_val("accept-encoding"))), nil, 406, :v3g7))
+    h(decision_test(h(choose_encoding(h(get_header_val("accept-encoding")))), nil, 406, :v3g7))
   ## "Resource exists?"
   decision v3g7 do
   ## his is the first place after all conneg, so set Vary here
-    vars = variances
+    vars = h(variances)
     if(length(vars)>0, do: h(set_resp_header("Vary",Enum.join(vars,",")))
     h(decision_test(resource_call(:resource_exists), true, :v3g8, :v3h7))
   end
@@ -253,140 +253,81 @@ defmodule Ewebmachine.Core do
     h(decision_test(resource_call(:allow_missing_post),true,:v3n11,410))
   ## "Redirect?"
   decision v3n11 do
-    stage1 = case resource_call(:post_is_create) do
-      true ->
-        new_path = resource_call(:create_path)
-        if is_nil(new_path), do: throw new Exception("post_is_create w/o create_path")
-        if !is_binary(new_path), do: throw new Exception("create_path not a string (#{inspect new_path})")
-        base_uri = case resource_call(:base_uri) do
-          nil -> h(base_uri)
-          any -> if String.last(any)=="/", do: String.slice(any,0..-2), else: any
-        end
-        full_path = "/#{h(path)}/#{new_path}"
-        h(set_disp_path(new_path))
-        if !h(get_resp_header("Location")), do:
-          h(set_resp_header("Location",base_uri<>full_path))
-        h(accept_helper)
-      false ->
-        true = resource_call(:process_post)
-        encode_body_if_set
-        :stage1_ok
-    end,
-    case Stage1 of
-          stage1_ok ->
-              case h(resp_redirect) of
-                  true ->
-                      case h(get_resp_header("Location")) of
-                          undefined ->
-                              Reason = "Response had do_redirect but no Location",
-                              error_response(500, Reason);
-                          _ ->
-                              respond(303)
-                      end;
-                  _ ->
-                      d(v3p11)
-              end;
-          _ -> nop
-      end;
+    if resource_call(:post_is_create) do
+      new_path = resource_call(:create_path)
+      if is_nil(new_path), do: throw Exception, "post_is_create w/o create_path"
+      if !is_binary(new_path), do: throw Exception, "create_path not a string (#{inspect new_path})"
+      base_uri = case resource_call(:base_uri) do
+        nil -> h(base_uri)
+        any -> if String.last(any)=="/", do: String.slice(any,0..-2), else: any
+      end
+      full_path = "/#{h(path)}/#{new_path}"
+      h(set_disp_path(new_path))
+      if !h(get_resp_header("Location")), do:
+        h(set_resp_header("Location",base_uri<>full_path))
+      h(accept_helper)
+    else 
+      true = resource_call(:process_post)
+      encode_body_if_set
+    end
+    d(redirect_helper)
+  end
   ## "POST?"
   decision v3n16 do
-      h(decision_test(h(method), 'POST', v3n11, v3o16);)
+    h(decision_test(h(method),"POST",:v3n11,:v3o16))
   ## Conflict?
   decision v3o14 do
-      case resource_call(is_conflict) of
-          true -> respond(409);
-          _ -> Res = accept_helper(),
-               case Res of
-                   {respond, Code} -> respond(Code);
-                   {halt, Code} -> respond(Code);
-                   {error, _,_} -> error_response(Res);
-                   {error, _} -> error_response(Res);
-                   _ -> d(v3p11)
-               end
-      end;
+    case resource_call(:is_conflict) do
+      true -> d(respond(409))
+      _ -> 
+        h(accept_helper)
+        d(v3p11)
+    end
+  end
   ## "PUT?"
   decision v3o16 do
-      h(decision_test(h(method), 'PUT', v3o14, v3o18);)
+    h(decision_test(h(method), "PUT",:v3o14,:v3o18))
   ## Multiple representations?
   ## also where body generation for GET and HEAD is done)
   decision v3o18 do
-      BuildBody = case h(method) of
-          'GET' -> true;
-          'HEAD' -> true;
-          _ -> false
-      end,
-      FinalBody = case BuildBody of
-          true ->
-              case resource_call(generate_etag) of
-                  undefined -> nop;
-                  ETag -> wrcall({set_resp_header, "ETag", webmachine_util:quoted_string(ETag)})
-              end,
-              CT = wrcall({get_metadata, 'content-type'}),
-              case resource_call(last_modified) of
-                  undefined -> nop;
-                  LM ->
-                      wrcall({set_resp_header, "Last-Modified",
-                              webmachine_util:rfc1123_date(LM)})
-              end,
-              case resource_call(expires) of
-                  undefined -> nop;
-                  Exp ->
-                      wrcall({set_resp_header, "Expires",
-                              webmachine_util:rfc1123_date(Exp)})
-              end,
-              F = hd([Fun || {Type,Fun} <- resource_call(content_types_provided),
-                             CT =:= webmachine_util:format_content_type(Type)]),
-              resource_call(F);
-          false -> nop
-      end,
-      case FinalBody of
-          {error, _} -> error_response(FinalBody);
-          {error, _,_} -> error_response(FinalBody);
-          {halt, Code} -> respond(Code);
-          nop -> d(v3o18b);
-          _ -> wrcall({set_resp_body,
-                       encode_body(FinalBody)}),
-               d(v3o18b)
-      end;
+    final_body = if h(method) in ["GET","HEAD"] do
+      if (etag=resource_call(:generate_etag)), do:
+        h(set_resp_header("ETag",quoted_string(etag)))
+      ct = h(get_metadata(:'content-type'))
+      if (lm=resource_call(:last_modified)), do:
+        h(set_resp_header("Last-Modified",rfc1123_date(lm)))
+      if (exp=resource_call(:expires)), do:
+        h(set_resp_header("Expires",rfc1123_date(exp)))
+      f = Enum.find_value(resource_call(:content_types_provided),fn {t,f}->format_content_type(t)==ct && f end)
+      h(set_resp_body(h(encode_body(resource_call(f)))))
+      d(v3o18b)
+    else
+      d(v3o18b)
+    end
+  end
   
-  decision v3o18b do
-      h(decision_test(resource_call(multiple_choices), true, 300, 200);)
+  decision v3o18b, do:
+    h(decision_test(resource_call(:multiple_choices), true, 300, 200))
   ## Response includes an entity?
-  decision v3o20 do
-      h(decision_test(wrcall(has_resp_body), true, v3o18, 204);)
+  decision v3o20, do:
+    h(decision_test(h(has_resp_body), true, :v3o18, 204))
   ## Conflict?
   decision v3p3 do
-      case resource_call(is_conflict) of
-          true -> respond(409);
-          _ -> Res = accept_helper(),
-               case Res of
-                   {respond, Code} -> respond(Code);
-                   {halt, Code} -> respond(Code);
-                   {error, _,_} -> error_response(Res);
-                   {error, _} -> error_response(Res);
-                   _ -> d(v3p11)
-               end
-      end;
+    if resource_call(:is_conflict) do
+      d(respond(409))
+    else
+      h(accept_helper)
+      d(v3p11)
+    end
+  end
   
   ## New resource?  (at this point boils down to "has location header")
   decision v3p11 do
-      case h(get_resp_header("Location") of
-          undefined -> d(v3o20);
-          _ -> respond(201)
-      end
-  end
-  
-  
-  decision respond(code) do
-    if code == 304 do
-      h(remove_resp_header("Content-Type"))
-      if (e_tag=resource_call(:generate_etag)), do:
-        h(set_resp_header("ETag", Ewebmachine.Util.quoted_string(etag)))
-      if (exp=resource_call(:expires)), do:
-        h(set_resp_header("Expires",Ewebmachine.Util.rfc1123_date(exp)))
+    if h(get_resp_header("Location")) do
+      d(respond(201))
+    else
+      d(v3o20)
     end
-    h(set_response_code(code))
-    resource_call(:finish_request)
   end
 end
 
@@ -413,10 +354,20 @@ defmodule Ewebmachine.Core.Utils do
   def media_type_to_detail(ct) do
     ## webmachine_util:media_type_to_detail(CT)
   end
+  def choose_encoding(encs,acc_enc_hdr) do
+    ## webmachine_util:choose_encoding(Encs, AccEncHdr)
+  end
+  def choose_charset(charsets,acc_char_hdr) do
+    ## webmachine_util:choose_charset(charsets, acc_char_hdr)
+  end
+  def format_content_type(ct) do
+    ## webmachine_util:format_content_type(ct)
+  end
 end
 
 defmodule Ewebmachine.Core.Helpers do
   import Ewebmachine.Core.DSL
+  import Ewebmachine.Core.Utils
 
   helper variances do
     accept = if length(resource_call(:content_types_provided))<2, do: [], else: ["Accept"]
@@ -430,19 +381,21 @@ defmodule Ewebmachine.Core.Helpers do
 
   helper accept_helper do
     ct = h(get_header_val("Content-Type")) || "application/octet-stream"
-    {mt,mparams} = Ewebmachine.Core.Utils.media_type_to_detail(ct)
+    {mt,mparams} = media_type_to_detail(ct)
     h(set_metadata(:mediaparams,mparams))
     mtfun = Enum.find_value(resource_call(:content_types_accepted), fn {t,f}-> (t == mt) && f end)
     if mtfun do 
       resource_call(mtfun)
       encode_body_if_set
-    else d(respond(415)) end
+    else 
+      d(respond(415))
+    end
   end
   
   helper encode_body_if_set do
     if h(has_resp_body) do
       body = h(resp_body)
-      h(set_resp_body(encode_body(body)))
+      h(set_resp_body(h(encode_body(body))))
     end
   end
   
@@ -451,78 +404,46 @@ defmodule Ewebmachine.Core.Helpers do
     charsetter = case resource_call(:charsets_provided) do
       :no_charset -> &(&1)
       cp -> Enum.find_value(cp, fn {c,f}-> (c == chosen_cset) && f end) || &(&1)
-    end,
+    end
     chosen_enc = h(get_metadata(:'content-encoding'))
     encoder = Enum.find_value(resource_call(:encodings_provided), 
                 fn {enc,f}-> (enc == chosen_enc) && f end) || &(&1)
-    case Body of
-        {stream, StreamBody} ->
-            {stream, make_encoder_stream(Encoder, Charsetter, StreamBody)};
-        {known_length_stream, 0, _StreamBody} ->
-            {known_length_stream, 0, empty_stream()};
-        {known_length_stream, Size, StreamBody} ->
-            case h(method) of
-                'HEAD' ->
-                    {known_length_stream, Size, empty_stream()};
-                _ ->
-                    {known_length_stream, Size, make_encoder_stream(Encoder, Charsetter, StreamBody)}
-            end;
-        {stream, Size, Fun} ->
-            {stream, Size, make_size_encoder_stream(Encoder, Charsetter, Fun)};
-        {writer, BodyFun} ->
-            {writer, {Encoder, Charsetter, BodyFun}};
-        _ ->
-            Encoder(Charsetter(iolist_to_binary(Body)))
+    case body do
+      %Stream{}-> body |> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
+      _-> body |> IO.iodata_to_binary |> charsetter |> encoder
     end
   end
   
-  ## @private
-  def empty_stream() do
-      {<<>>, fun() -> {<<>>, done} end}
+  helper choose_encoding(acc_enc_hdr) do
+    encs = for {enc,_}<-resource_call(:encodings_provided), do: enc
+    if(chosen_enc=choose_encoding(encs, acc_enc_hdr)) do
+      if chosen_enc !== "identity", do:
+        h(set_resp_header("Content-Encoding",chosen_enc))
+      h(set_metadata(:'content-encoding',chosen_enc))
+      chosen_enc
+    end
   end
   
-  def make_encoder_stream(Encoder, Charsetter, {Body, done}) do
-      {Encoder(Charsetter(Body)), done};
-  def make_encoder_stream(Encoder, Charsetter, {Body, Next}) do
-      {Encoder(Charsetter(Body)),
-       fun() -> make_encoder_stream(Encoder, Charsetter, Next()) end}
+  helper choose_charset(acc_char_hdr) do
+    case resource_call(:charsets_provided) do
+      :no_charset -> :no_charset
+      cl ->
+        charsets = for {cset,_f}<-cl, do: cset
+        if (charset=choose_charset(charsets, acc_char_hdr)) do
+          h(set_metadata(:'chosen-charset',charset))
+          charset
+        end
+    end
   end
-  
-  def make_size_encoder_stream(Encoder, Charsetter, Fun) do
-      fun(Start, End) ->
-              make_encoder_stream(Encoder, Charsetter, Fun(Start, End))
-      end
-  end
-  
-  def choose_encoding(AccEncHdr) do
-      Encs = [Enc || {Enc,_Fun} <- resource_call(encodings_provided)],
-      case webmachine_util:choose_encoding(Encs, AccEncHdr) of
-          none -> none;
-          ChosenEnc ->
-              case ChosenEnc of
-                  "identity" ->
-                      nop;
-                  _ ->
-                      wrcall({set_resp_header, "Content-Encoding",ChosenEnc})
-              end,
-              wrcall({set_metadata, 'content-encoding',ChosenEnc}),
-              ChosenEnc
-      end
-  end
-  
-  def choose_charset(AccCharHdr) do
-      case resource_call(charsets_provided) of
-          no_charset ->
-              no_charset;
-          CL ->
-              CSets = [CSet || {CSet,_Fun} <- CL],
-              case webmachine_util:choose_charset(CSets, AccCharHdr) of
-                  none -> none;
-                  Charset ->
-                      wrcall({set_metadata, 'chosen-charset',Charset}),
-                      Charset
-              end
-      end
+
+  helper redirect_helper do
+    if h(resp_redirect) do
+      if !h(get_resp_header("Location")), do:
+        throw Exception, "Response had do_redirect but no Location"
+      d(respond(303))
+    else 
+      d(v3p11) 
+    end
   end
 
   helper decision_test_fn(test,test_fn,true_flow,false_flow) do
@@ -535,6 +456,18 @@ defmodule Ewebmachine.Core.Helpers do
   end
   helper decision_flow(x) when is_atom(x), do: d(x)
   helper decision_flow(x) when is_integer(x), do: d(respond(x))
+  
+  helper respond(code) do
+    if code == 304 do
+      h(remove_resp_header("Content-Type"))
+      if (e_tag=resource_call(:generate_etag)), do:
+        h(set_resp_header("ETag", quoted_string(etag)))
+      if (exp=resource_call(:expires)), do:
+        h(set_resp_header("Expires",rfc1123_date(exp)))
+    end
+    h(set_response_code(code))
+    resource_call(:finish_request)
+  end
 
   def port_suffix(:http,80), do: ""
   def port_suffix(:https,443), do: ""

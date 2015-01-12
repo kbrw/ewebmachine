@@ -9,7 +9,7 @@ defmodule Ewebmachine.Core.DSL do
     {reply, conn, user_state} = apply(handler,fun,[conn,user_state])
     {conn,reply} = case reply do
       {:halt,code}-> #if halt, store current conn and fake reply
-        conn = Conn.put_private(conn,:halt_conn,conn)
+        conn = Conn.put_private(conn,:machine_halt_conn,conn)
         reply = elem(apply(Ewebmachine.Default,fun,[conn,user_state]),0)
         {conn,reply}
       _ ->{conn,reply}
@@ -44,14 +44,14 @@ defmodule Ewebmachine.Core.DSL do
     {name,params,guard} = sig_to_sigwhen(sig)
     params = (quote do: [conn,user_state]) ++ params
     quote do
-      {reply,conn,user_state} = unquote(decision)(unquote_splicing(params))
+      {reply,conn,user_state} = unquote(name)(unquote_splicing(params))
       reply
     end
   end
 
   defmacro d(sig) do quote do
     case conn do
-      %{private: %{machine_halt: halt_conn}}->halt_conn
+      %{private: %{machine_halt_conn: halt_conn}}->halt_conn
       %{halted: true}->conn
       _ -> h(unquote(sig)) ; conn
     end
@@ -75,8 +75,12 @@ defmodule Ewebmachine.Core.DSL do
   helper get_header_val(name), do: 
     conn.req_headers[name]
 
-  helper set_response_code(code), do: 
-    (conn = Conn.put_status(conn,code); :ok)
+  helper set_response_code(code) do
+    conn = conn # halt machine when set response code, on respond
+      |> Conn.put_private(:machine_halt_conn,conn)
+      |> Conn.put_status(code)
+    :ok
+  end
 
   helper set_resp_header(k,v), do: 
     (conn = Conn.put_resp_header(conn,k,v); :ok)
@@ -88,16 +92,19 @@ defmodule Ewebmachine.Core.DSL do
     (conn = Conn.delete_resp_header(conn,k); :ok)
 
   helper set_disp_path(path), do:
-    (conn = %{conn| script_name: String.split("#{unquote(path)}","/")}; :ok)
+    (conn = %{conn| script_name: String.split("#{path}","/")}; :ok)
 
   helper resp_body, do:
-    conn.resp_body
+    (conn.priv[:machine_body_stream] || conn.resp_body)
+
+  helper set_resp_body(%Stream{}=body), do:
+    (conn = Conn.put_private(:machine_body_stream,body); :ok)
 
   helper set_resp_body(body), do:
-    (conn = %{conn | resp_body: unquote(body)}; :ok)
+    (conn = %{conn | resp_body: body}; :ok)
 
   helper has_resp_body, do:
-    !is_nil(conn.resp_body)
+    (!is_nil(conn.resp_body) or !is_nil(conn.priv[:machine_body_stream]))
 
   helper get_metadata(key), do:
     conn.priv[key]
