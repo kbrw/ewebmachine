@@ -33,10 +33,11 @@ defmodule Ewebmachine.Plug do
 
   for resource_fun_name<-@resource_fun_names do
     Module.eval_quoted(Ewebmachine.Plug, quote do
-      defmacro unquote(resource_fun)(signature \\ quote(do: ), do: body) do
+      defmacro unquote(resource_fun_name)(do: body) do
+        resource_fun_name = unquote(resource_fun_name)
         quote do
-          @resource_handlers Dict.put(@resource_handlers,unquote(resource_fun),__MODULE__)
-          def unquote(resource_fun)(conn,state) do
+          @resource_handlers Dict.put(@resource_handlers,unquote(resource_fun_name),__MODULE__)
+          def unquote(resource_fun_name)(conn,state) do
             wrap_response(unquote(body),initialconn,initialstate)
           end
         end

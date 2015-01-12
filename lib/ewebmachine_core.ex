@@ -1,7 +1,40 @@
+defmodule Ewebmachine.Core.Utils do
+  def choose_media_type(content_types,accept_header) do
+    nil
+  end
+  def quoted_string(etag) do
+    ## TODO webmachine_util:quoted_string(ETag)
+    etag
+  end
+  def rfc1123_date(exp) do
+    ## TODO  webmachine_util:rfc1123_date(Exp)
+    exp
+  end
+  def split_quoted_strings(str) do
+    ## TODO webmachine_util:split_quoted_strings
+    []
+  end
+  def convert_request_date(date) do
+    ## TODO webmachine_util:convert_request_date(IUMSDate)
+    date
+  end
+  def media_type_to_detail(ct) do
+    ## webmachine_util:media_type_to_detail(CT)
+  end
+  def choose_encoding(encs,acc_enc_hdr) do
+    "utf8"
+    ## webmachine_util:choose_encoding(Encs, AccEncHdr)
+  end
+  def choose_charset(charsets,acc_char_hdr) do
+    ## webmachine_util:choose_charset(charsets, acc_char_hdr)
+  end
+end
+
 defmodule Ewebmachine.Core do
   import Ewebmachine.Core.DSL
-  import Ewebmachine.Core.Helpers
+  import Ewebmachine.Core.API
   import Ewebmachine.Core.Utils
+  @compile :nowarn_unused_vars
 
   decision v3, do: d(v3b13)
 
@@ -80,7 +113,7 @@ defmodule Ewebmachine.Core do
   decision v3c3 do
     p_types = for {type,_fun}<-resource_call(:content_types_provided), do: type
     case h(get_header_val("accept")) do
-      nil -> set_metadata(:'content-type', hd(p_types)); d(v3d4)
+      nil -> h(set_metadata(:'content-type', hd(p_types))); d(v3d4)
       _ -> d(v3c4)
     end
   end
@@ -89,7 +122,7 @@ defmodule Ewebmachine.Core do
     p_types = for {type,_fun}<-resource_call(:content_types_provided), do: type
     case choose_media_type(p_types, h(get_header_val("accept"))) do
       nil -> d(respond(406))
-      type -> set_metadata(:'content-type', type); d(v3d4)
+      type -> h(set_metadata(:'content-type', type)); d(v3d4)
     end
   end
   ## Accept-Language exists?
@@ -97,17 +130,17 @@ defmodule Ewebmachine.Core do
     h(decision_test(h(get_header_val("accept-language")),nil, :v3e5, :v3d5))
   ## Acceptable Language available? %% WMACH-46 (do this as proper conneg)
   decision v3d5, do:
-    h(decision_test(resource_call(:language_available), true, :v3e5, 406);)
+    h(decision_test(resource_call(:language_available), true, :v3e5, 406))
   ## Accept-Charset exists?
   decision v3e5 do
     case h(get_header_val("accept-charset")) do
-      nil -> h(decision_test(choose_charset("*"),nil, 406, :v3f6))
+      nil -> h(decision_test(h(choose_charset("*")),nil, 406, :v3f6))
       _ -> d(v3e6)
     end
   end
   ## Acceptable Charset available?
   decision v3e6, do:
-    h(decision_test(choose_charset(h(get_header_val("accept-charset"))),nil, 406, :v3f6))
+    h(decision_test(h(choose_charset(h(get_header_val("accept-charset")))),nil, 406, :v3f6))
   ## Accept-Encoding exists?
   ## also, set content-type header here, now that charset is chosen)
   decision v3f6 do
@@ -126,7 +159,7 @@ defmodule Ewebmachine.Core do
   decision v3g7 do
   ## his is the first place after all conneg, so set Vary here
     vars = h(variances)
-    if(length(vars)>0, do: h(set_resp_header("Vary",Enum.join(vars,",")))
+    if length(vars)>0, do: h(set_resp_header("Vary",Enum.join(vars,",")))
     h(decision_test(resource_call(:resource_exists), true, :v3g8, :v3h7))
   end
   ## "If-Match exists?"
@@ -174,9 +207,9 @@ defmodule Ewebmachine.Core do
     h(decision_test(h(get_header_val("if-none-match")),nil,:v3l13,:v3i13))
   ## "If-None-Match: * exists?"
   decision v3i13, do:
-    h(decision_test(h(get_header_val("if-none-match")), "*", :v3j18, :v3k13);)
+    h(decision_test(h(get_header_val("if-none-match")), "*", :v3j18, :v3k13))
   ## GET or HEAD?
-  decision v3j18 do
+  decision v3j18, do:
     h(decision_test(h(method) in ['GET','HEAD'],true, 304, 412))
   ## "Moved permanently?"
   decision v3k5 do
@@ -198,7 +231,7 @@ defmodule Ewebmachine.Core do
   end
   ## "Moved temporarily?"
   decision v3l5 do
-    case resource_call(:moved_temporarily) of
+    case resource_call(:moved_temporarily) do
       {true, moved_uri} -> h(set_resp_header("Location", moved_uri));d(respond(307))
       false -> d(v3m5)
     end
@@ -255,8 +288,8 @@ defmodule Ewebmachine.Core do
   decision v3n11 do
     if resource_call(:post_is_create) do
       new_path = resource_call(:create_path)
-      if is_nil(new_path), do: throw Exception, "post_is_create w/o create_path"
-      if !is_binary(new_path), do: throw Exception, "create_path not a string (#{inspect new_path})"
+      if is_nil(new_path), do: raise(Exception, "post_is_create w/o create_path")
+      if !is_binary(new_path), do: raise(Exception, "create_path not a string (#{inspect new_path})")
       base_uri = case resource_call(:base_uri) do
         nil -> h(base_uri)
         any -> if String.last(any)=="/", do: String.slice(any,0..-2), else: any
@@ -268,12 +301,12 @@ defmodule Ewebmachine.Core do
       h(accept_helper)
     else 
       true = resource_call(:process_post)
-      encode_body_if_set
+      h(encode_body_if_set)
     end
     d(redirect_helper)
   end
   ## "POST?"
-  decision v3n16 do
+  decision v3n16, do:
     h(decision_test(h(method),"POST",:v3n11,:v3o16))
   ## Conflict?
   decision v3o14 do
@@ -285,7 +318,7 @@ defmodule Ewebmachine.Core do
     end
   end
   ## "PUT?"
-  decision v3o16 do
+  decision v3o16, do:
     h(decision_test(h(method), "PUT",:v3o14,:v3o18))
   ## Multiple representations?
   ## also where body generation for GET and HEAD is done)
@@ -298,7 +331,7 @@ defmodule Ewebmachine.Core do
         h(set_resp_header("Last-Modified",rfc1123_date(lm)))
       if (exp=resource_call(:expires)), do:
         h(set_resp_header("Expires",rfc1123_date(exp)))
-      f = Enum.find_value(resource_call(:content_types_provided),fn {t,f}->format_content_type(t)==ct && f end)
+      f = Enum.find_value(resource_call(:content_types_provided),fn {t,f}->t==ct && f end)
       h(set_resp_body(h(encode_body(resource_call(f)))))
       d(v3o18b)
     else
@@ -329,45 +362,6 @@ defmodule Ewebmachine.Core do
       d(v3o20)
     end
   end
-end
-
-defmodule Ewebmachine.Core.Utils do
-  def choose_media_type(content_types,accept_header) do
-    nil
-  end
-  def quoted_string(etag) do
-    ## TODO webmachine_util:quoted_string(ETag)
-    etag
-  end
-  def rfc1123_date(exp) do
-    ## TODO  webmachine_util:rfc1123_date(Exp)
-    exp
-  end
-  def split_quoted_strings(str) do
-    ## TODO webmachine_util:split_quoted_strings
-    []
-  end
-  def convert_request_date(date) do
-    ## TODO webmachine_util:convert_request_date(IUMSDate)
-    date
-  end
-  def media_type_to_detail(ct) do
-    ## webmachine_util:media_type_to_detail(CT)
-  end
-  def choose_encoding(encs,acc_enc_hdr) do
-    ## webmachine_util:choose_encoding(Encs, AccEncHdr)
-  end
-  def choose_charset(charsets,acc_char_hdr) do
-    ## webmachine_util:choose_charset(charsets, acc_char_hdr)
-  end
-  def format_content_type(ct) do
-    ## webmachine_util:format_content_type(ct)
-  end
-end
-
-defmodule Ewebmachine.Core.Helpers do
-  import Ewebmachine.Core.DSL
-  import Ewebmachine.Core.Utils
 
   helper variances do
     accept = if length(resource_call(:content_types_provided))<2, do: [], else: ["Accept"]
@@ -375,7 +369,7 @@ defmodule Ewebmachine.Core.Helpers do
     accept_char = case resource_call(:charsets_provided) do
         :no_charset -> []
         charset -> if length(charset)<2, do: [], else: ["Accept-Charset"]
-    end,
+    end
     accept ++ accept_enc ++ accept_char ++ resource_call(:variances)
   end
 
@@ -386,7 +380,7 @@ defmodule Ewebmachine.Core.Helpers do
     mtfun = Enum.find_value(resource_call(:content_types_accepted), fn {t,f}-> (t == mt) && f end)
     if mtfun do 
       resource_call(mtfun)
-      encode_body_if_set
+      h(encode_body_if_set)
     else 
       d(respond(415))
     end
@@ -410,7 +404,7 @@ defmodule Ewebmachine.Core.Helpers do
                 fn {enc,f}-> (enc == chosen_enc) && f end) || &(&1)
     case body do
       %Stream{}-> body |> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
-      _-> body |> IO.iodata_to_binary |> charsetter |> encoder
+      _-> body |> IO.iodata_to_binary |> charsetter.() |> encoder.()
     end
   end
   
@@ -439,7 +433,7 @@ defmodule Ewebmachine.Core.Helpers do
   helper redirect_helper do
     if h(resp_redirect) do
       if !h(get_resp_header("Location")), do:
-        throw Exception, "Response had do_redirect but no Location"
+        raise(Exception, "Response had do_redirect but no Location")
       d(respond(303))
     else 
       d(v3p11) 
@@ -454,13 +448,20 @@ defmodule Ewebmachine.Core.Helpers do
   helper decision_test(test,test_val,true_flow,false_flow) do
     h(decision_test_fn(test,&(&1 == test_val),true_flow,false_flow))
   end
-  helper decision_flow(x) when is_atom(x), do: d(x)
+  helper decision_flow(x) when is_atom(x) do #manual "d" in order to get dynamic function name
+    case conn do
+      %{private: %{machine_halt_conn: nil}}->conn
+      %{private: %{machine_halt_conn: halt_conn}}-> conn = halt_conn
+      %{halted: true}->conn
+      _ -> {_,conn,user_state} = apply(__MODULE__,x,[conn,user_state]); conn
+    end
+  end
   helper decision_flow(x) when is_integer(x), do: d(respond(x))
   
   helper respond(code) do
     if code == 304 do
       h(remove_resp_header("Content-Type"))
-      if (e_tag=resource_call(:generate_etag)), do:
+      if (etag=resource_call(:generate_etag)), do:
         h(set_resp_header("ETag", quoted_string(etag)))
       if (exp=resource_call(:expires)), do:
         h(set_resp_header("Expires",rfc1123_date(exp)))
@@ -468,9 +469,5 @@ defmodule Ewebmachine.Core.Helpers do
     h(set_response_code(code))
     resource_call(:finish_request)
   end
-
-  def port_suffix(:http,80), do: ""
-  def port_suffix(:https,443), do: ""
-  def port_suffix(_,port), do: ":#{port}"
 end
 

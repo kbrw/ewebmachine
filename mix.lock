@@ -1,4 +1,8 @@
-%{"ibrowse": {:git, "git://github.com/cmullaparthi/ibrowse.git", "9b8b042fb7d37b90994ef6b6615c92dd2769328e", [tag: "v4.0.1"]},
+%{"cowboy": {:hex, :cowboy, "1.0.0"},
+  "cowlib": {:hex, :cowlib, "1.0.1"},
+  "ibrowse": {:git, "git://github.com/cmullaparthi/ibrowse.git", "9b8b042fb7d37b90994ef6b6615c92dd2769328e", [tag: "v4.0.1"]},
   "meck": {:git, "git://github.com/basho/meck.git", "dde759050eff19a1a80fd854d7375174b191665d", [tag: "0.8.2"]},
   "mochiweb": {:git, "git://github.com/basho/mochiweb.git", "332da857d91e681184a523a0d886a631b5385d7b", [tag: "1.5.1p7"]},
+  "plug": {:hex, :plug, "0.9.0"},
+  "ranch": {:hex, :ranch, "1.0.0"},
   "webmachine": {:git, "git://github.com/basho/webmachine.git", "50c790ddc6087a133d326d7888ac596997d555ff", [tag: "1.10.6"]}}
