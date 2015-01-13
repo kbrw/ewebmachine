@@ -1,34 +1,3 @@
-defmodule Ewebmachine.Core.Utils do
-  def choose_media_type(content_types,accept_header) do
-    nil
-  end
-  def quoted_string(etag) do
-    ## TODO webmachine_util:quoted_string(ETag)
-    etag
-  end
-  def rfc1123_date(exp) do
-    ## TODO  webmachine_util:rfc1123_date(Exp)
-    exp
-  end
-  def split_quoted_strings(str) do
-    ## TODO webmachine_util:split_quoted_strings
-    []
-  end
-  def convert_request_date(date) do
-    ## TODO webmachine_util:convert_request_date(IUMSDate)
-    date
-  end
-  def media_type_to_detail(ct) do
-    ## webmachine_util:media_type_to_detail(CT)
-  end
-  def choose_encoding(encs,acc_enc_hdr) do
-    "utf8"
-    ## webmachine_util:choose_encoding(Encs, AccEncHdr)
-  end
-  def choose_charset(charsets,acc_char_hdr) do
-    ## webmachine_util:choose_charset(charsets, acc_char_hdr)
-  end
-end
 
 defmodule Ewebmachine.Core do
   import Ewebmachine.Core.DSL
@@ -111,7 +80,7 @@ defmodule Ewebmachine.Core do
   end
   ## Accept exists?
   decision v3c3 do
-    p_types = for {type,_fun}<-resource_call(:content_types_provided), do: type
+    p_types = for {type,_fun}<-resource_call(:content_types_provided), do: normalize_mtype(type)
     case h(get_header_val("accept")) do
       nil -> h(set_metadata(:'content-type', hd(p_types))); d(v3d4)
       _ -> d(v3c4)
@@ -119,7 +88,7 @@ defmodule Ewebmachine.Core do
   end
   ## Acceptable media type available?
   decision v3c4 do
-    p_types = for {type,_fun}<-resource_call(:content_types_provided), do: type
+    p_types = for {type,_fun}<-resource_call(:content_types_provided), do: normalize_mtype(type)
     case choose_media_type(p_types, h(get_header_val("accept"))) do
       nil -> d(respond(406))
       type -> h(set_metadata(:'content-type', type)); d(v3d4)
@@ -144,9 +113,9 @@ defmodule Ewebmachine.Core do
   ## Accept-Encoding exists?
   ## also, set content-type header here, now that charset is chosen)
   decision v3f6 do
-    ctype = h(get_metadata(:'content-type'))
-    charset = (char=h(get_metadata(:'chosen-charset'))) && "; charset=#{char}" || ""
-    h(set_resp_header("Content-Type",ctype<>charset))
+    {type,subtype,params} = h(get_metadata(:'content-type'))
+    params = (char=h(get_metadata(:'chosen-charset'))) && Dict.put(params,:charset,char) || params
+    h(set_resp_header("Content-Type",format_mtype({type,subtype,params})))
     case h(get_header_val("accept-encoding")) do
       nil -> h(decision_test(h(choose_encoding("identity;q=1.0,*;q=0.5")),nil, 406, :v3g7))
       _ -> d(v3f7)
@@ -331,7 +300,7 @@ defmodule Ewebmachine.Core do
         h(set_resp_header("Last-Modified",rfc1123_date(lm)))
       if (exp=resource_call(:expires)), do:
         h(set_resp_header("Expires",rfc1123_date(exp)))
-      f = Enum.find_value(resource_call(:content_types_provided),fn {t,f}->t==ct && f end)
+      f = Enum.find_value(resource_call(:content_types_provided),fn {t,f}->normalize_mtype(t)==ct && f end)
       h(set_resp_body(h(encode_body(resource_call(f)))))
       d(v3o18b)
     else
@@ -375,9 +344,9 @@ defmodule Ewebmachine.Core do
 
   helper accept_helper do
     ct = h(get_header_val("Content-Type")) || "application/octet-stream"
-    {mt,mparams} = media_type_to_detail(ct)
+    {_,_,mparams}=mt = normalize_mtype(ct)
     h(set_metadata(:mediaparams,mparams))
-    mtfun = Enum.find_value(resource_call(:content_types_accepted), fn {t,f}-> (t == mt) && f end)
+    mtfun = Enum.find_value(resource_call(:content_types_accepted), fn {t,f}-> (normalize_mtype(t) == mt) && f end)
     if mtfun do 
       resource_call(mtfun)
       h(encode_body_if_set)
