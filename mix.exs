@@ -22,7 +22,7 @@ defmodule Ewebmachine.Mixfile do
   end
 
   def application do
-    [ applications: [:webmachine],
+    [ applications: [:plug],
       env: [] ]
   end
 
