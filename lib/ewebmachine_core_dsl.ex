@@ -4,13 +4,13 @@ defmodule Ewebmachine.Core.DSL do
   def sig_to_sigwhen({name,_,_}), do: {name,[],true}
 
   defmacro resource_call(fun) do quote do
-    handler = var!(conn).private[:resource_handlers][unquote(fun)] || Ewebmachine.Default
+    handler = var!(conn).private[:resource_handlers][unquote(fun)] || Ewebmachine
     {reply, myconn, myuser_state} = apply(handler,unquote(fun),[var!(conn),var!(user_state)])
     {reply,var!(conn),var!(user_state)} = case reply do
       {:halt,code}-> #if halt, store current conn and fake reply
         myconn = Conn.put_private(myconn,:machine_halt_conn,myconn)
-        {reply,_,_} = if !Module.defines?(Ewebmachine.Default,{unquote(fun),2}), do: {"",[],[]}, #body producing fun
-                        else: apply(Ewebmachine.Default,unquote(fun),[myconn,myuser_state])
+        {reply,_,_} = if !Module.defines?(Ewebmachine,{unquote(fun),2}), do: {"",[],[]}, #body producing fun
+                        else: apply(Ewebmachine,unquote(fun),[myconn,myuser_state])
         {reply,myconn,myuser_state}
       _ ->{reply,myconn,myuser_state}
     end

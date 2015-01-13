@@ -1,4 +1,18 @@
-defmodule Ewebmachine.Default do
+defmodule Ewebmachine do
+
+  def do_redirect(conn), do:
+    Conn.put_private(conn, :resp_redirect, true)
+
+  def send(conn) do
+    if (stream=conn.private[:machine_body_stream]) do
+      conn = Conn.send_chunked(conn,conn.status)
+      Enum.each(stream,&Conn.chunk(conn,&1))
+      conn
+    else
+      Conn.send_resp(conn)
+    end |> Conn.halt
+  end
+
   def service_available(conn,state), do:
     {true,conn,state}
   def resource_exists(conn,state), do:

@@ -1,10 +1,10 @@
 defmodule Ewebmachine.Plug do
   defmacro __before_compile__(_env) do
     quote do
-      defp build_machine(conn, _opts) do
+      defp machine_build(conn, _opts) do
         Plug.Conn.put_private(conn,
           :resource_handlers,
-          Dict.merge(conn.private[:resource_handlers],@resource_handlers))
+          Dict.merge(conn.private[:resource_handlers] || %{},@resource_handlers))
       end
     end
   end
@@ -15,8 +15,15 @@ defmodule Ewebmachine.Plug do
       @before_compile Ewebmachine.Plug
       @resource_handlers %{}
 
-      defp run_machine(conn, opts) do
-        Ewebmachine.Core.v3(conn,opts[:state_init])
+      def init, do: []
+      defoverridable [init: 0]
+
+      defp machine_run(conn, _opts) do
+        Ewebmachine.Core.v3(conn,init)
+      end
+
+      defp machine_send(conn, _opts) do
+        Ewebmachine.send(conn)
       end
     end
   end
@@ -44,12 +51,14 @@ defmodule Ewebmachine.Plug do
       end
     end)
   end
-
-  def do_redirect(conn), do:
-    Conn.put_private(conn, :resp_redirect, true)
 end
 
 defmodule Ewebmachine.DebugPlug do
+  use Plug.Router
+  plug :match
+  plug :dispatch
+  match _, do: conn
+
   #add /ewebmachine route to debug route
   # add conn.priv[:machine_debug] = true
 end
@@ -59,6 +68,10 @@ defmodule Ewebmachine.RoutingPlug do
     quote location: :keep do
       import Ewebmachine.RoutingPlug
       use Plug.Router
+
+      defp machine_send(conn, _opts) do
+        Ewebmachine.send(conn)
+      end
     end
   end
   
@@ -73,7 +86,7 @@ defmodule Ewebmachine.RoutingPlug do
         unquote(body)
       end
       match unquote(route) do
-        module.call(conn,module.init(route,[]))
+        module.call(conn,module.init([]))
       end
     end
   end
