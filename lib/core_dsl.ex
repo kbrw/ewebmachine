@@ -17,7 +17,6 @@ defmodule Ewebmachine.Core.DSL do
     {reply, myconn, myuser_state} = term = apply(handler,unquote(fun),args)
     if handler !== Ewebmachine do 
       myconn = Ewebmachine.Log.debug_call(myconn,handler,unquote(fun),args,term)
-      IO.puts "handle call #{unquote(fun)}"
     end
     {reply,var!(conn),var!(user_state)} = case reply do
       {:halt,code}-> #if halt, store current conn and fake reply
@@ -62,6 +61,9 @@ defmodule Ewebmachine.Core.DSL do
     end
   end
 
+  defmacro d(sig) when is_integer(sig) do 
+    quote do d(respond(unquote(sig))) end
+  end
   defmacro d(sig) do quote do
     case var!(conn) do
       %{private: %{machine_halt_conn: nil}}->var!(conn)
@@ -98,6 +100,7 @@ defmodule Ewebmachine.Core.API do
     conn = conn # halt machine when set response code, on respond
       |> Conn.put_private(:machine_halt_conn,nil)
       |> Conn.put_status(code)
+      |> Ewebmachine.Log.debug_enddecision
     if !conn.resp_body, do: conn = %{conn|resp_body: ""}
     conn = %{conn|state: :set}
     :ok
