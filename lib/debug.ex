@@ -41,13 +41,23 @@ defmodule Ewebmachine.Log do
         [{module,function,in_args,out_term}|conn.private.machine_calls])
     else conn end
   end
+  def debug_enddecision(conn) do
+    if conn.private[:machine_log] do
+      case conn.private.machine_decisions do
+        [{decision,_}|rest] ->
+          conn 
+          |> Conn.put_private(:machine_decisions,[{decision,Enum.reverse(conn.private.machine_calls)}|rest])
+          |> Conn.put_private(:machine_calls,[])
+        _->conn
+      end
+    else conn end
+  end
   def debug_decision(conn,decision) do
     if conn.private[:machine_log] do
       case Regex.run(~r/^v[0-9]([a-z]*[0-9]*)$/,to_string(decision)) do
-        [_,decision]->
-          conn
-          |> Conn.put_private(:machine_decisions,[{decision,Enum.reverse(conn.private.machine_calls)}|conn.private.machine_decisions])
-          |> Conn.put_private(:machine_calls,[])
+        [_,decision]-> 
+          conn = debug_enddecision(conn)
+          Conn.put_private(conn,:machine_decisions,[{decision,[]}|conn.private.machine_decisions])
         _->conn
       end
     else conn end
@@ -67,8 +77,11 @@ defmodule Ewebmachine.DebugPlug do
   EEx.function_from_file :defp, :render_log, "templates/log_view.html.eex", [:logconn,:conn]
 
   get "/wm_debug/log/:id" do
-    html = render_log(Log.get(id),conn)
-    conn |> send_resp(200,html) |> halt
+    if (logconn=Log.get(id)) do
+      conn |> send_resp(200,render_log(logconn,conn)) |> halt
+    else
+      conn |> put_resp_header("location","/wm_debug") |> send_resp(302,"") |> halt
+    end
   end
 
   get "/wm_debug" do
@@ -94,29 +107,41 @@ defmodule Ewebmachine.DebugPlug do
     end)
   end
 
+  defp body_of(conn) do
+    case Conn.read_body(conn) do
+      {:ok,body,_}->body
+      _ -> ""
+    end
+  end
+
+  defp format_headers(headers) do
+    headers |> Enum.map(fn {k,v}->"#{k}: #{v}\n" end) |> Enum.join
+  end
+
   def to_draw(conn), do: %{
-    request: %{
-      method: "#{conn.method}",
-      path: Conn.full_path(conn),
-      headers: Enum.into(conn.req_headers,%{}),
-      body: case Conn.read_body(conn) do
-          {:ok,body,_}->body
-          _ -> ""
-        end
-    },
+    request: """
+    #{conn.method} #{Conn.full_path(conn)} HTTP/1.1
+    #{format_headers(conn.req_headers)}
+
+    #{body_of(conn)}
+    """,
     response: %{
-      code: conn.status,
-      headers: Enum.into(conn.resp_headers,%{}),
-      body: (conn.resp_body || "")
+      http: """
+      HTTP/1.1 #{conn.status} Status 
+      #{format_headers(conn.resp_headers)}
+
+      #{conn.resp_body}
+      """,
+      code: conn.status
     },
-      trace: Enum.map((IO.puts(inspect(conn.private.machine_decisions,pretty: true)); Enum.reverse(conn.private.machine_decisions)), fn {decision,calls}->
+    trace: Enum.map(Enum.reverse(conn.private.machine_decisions), fn {decision,calls}->
       %{
         d: decision,
-        calls: Enum.map(calls,fn {module,function,in_args,out_term}->
+        calls: Enum.map(calls,fn {module,function,[callconn,state],out_term}->
           %{
             module: inspect(module),
             function: "#{function}",
-            input: inspect(in_args, pretty: true),
+            input: inspect({state,%{callconn|private: %{}}}, pretty: true),
             output: inspect(out_term, pretty: true)
           }
         end)

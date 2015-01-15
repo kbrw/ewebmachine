@@ -508,9 +508,11 @@ function initDetailPanels() {
             if (call.output != "wmtrace_not_exported") {
                 callInput.style.color='#000000';
                 callInput.innerHTML = call.input;
+                hljs.highlightBlock(callInput);
                 if (call.output != null) {
                     callOutput.style.color = '#000000';
                     callOutput.innerHTML = call.output;
+                    hljs.highlightBlock(callOutput);
                 } else {
                     callOutput.style.color = '#ff0000';
                     callOutput.textContent = 'Error: '+call.module+':'+call['function']+' never returned';
@@ -532,15 +534,10 @@ function initDetailPanels() {
         return h;
     };
 
-    document.getElementById('requestmethod').innerHTML = request.method;
-    document.getElementById('requestpath').innerHTML = request.path;
-    document.getElementById('requestheaders').innerHTML = headersList(request.headers);
-    document.getElementById('requestbody').innerHTML = request.body;
-
-    document.getElementById('responsecode').innerHTML = response.code;
-    document.getElementById('responseheaders').innerHTML = headersList(response.headers);
-    document.getElementById('responsebody').innerHTML = response.body;
-
+    document.getElementById('requestcode').innerHTML = request;
+    document.getElementById('responsecode').innerHTML = response.http;
+    hljs.highlightBlock(document.getElementById('requestcode'));
+    hljs.highlightBlock(document.getElementById('responsecode'));
 
     var infoControls = document.getElementById('infocontrols');
     var md = false;

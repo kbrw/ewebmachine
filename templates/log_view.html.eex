@@ -3,7 +3,9 @@
 <head>
     <title>Webmachine Trace <%= logconn.private.machine_log %></title>
     <link rel="stylesheet" type="text/css" href="/wm_debug/static/wmtrace.css">
+    <link rel="stylesheet" type="text/css" href="/wm_debug/static/highlight_styles/default.css">
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <script src="/wm_debug/static/highlight.pack.js"></script>
     <script src="/wm_debug/static/wmtrace.js"></script>
     <script src="/wm_debug/static/bert.js"></script>
     <script>
@@ -41,16 +43,10 @@ var trace = obj.trace
             <div id="decisiontab">D</div>
         </div>
         <div id="requestdetail">
-            <div>
-                <span id="requestmethod"></span> <span id="requestpath"></span>
-            </div>
-            <ul id="requestheaders"></ul>
-            <div id="requestbody"></div>
+            <pre><code id="requestcode" class="http"></code></pre>
         </div>
         <div id="responsedetail">
-            <div id="responsecode"></div>
-            <ul id="responseheaders"></ul>
-            <div id="responsebody"></div>
+            <pre><code id="responsecode" class="http"></code></pre>
         </div>
         <div id="decisiondetail">
             <div>Decision:
@@ -60,9 +56,9 @@ var trace = obj.trace
                 <select id="decisioncalls"></select>
             </div>
             <div>Inputs:</div>
-            <pre id="callinput"></pre>
+            <pre><code id="callinput" class="elixir"></code></pre>
             <div>Output:</div>
-            <pre id="calloutput"></pre>
+            <pre><code id="calloutput" class="elixir"></code></pre>
         </div>
     </div>
 </body>
