@@ -14,18 +14,38 @@ defmodule Ewebmachine do
     end
   end
 
-  def service_available(conn,state), do:
-    {true,conn,state}
-  def resource_exists(conn,state), do:
-    {true,conn,state}
-  def auth_required(conn,state), do:
-    {true,conn,state}
-  def is_authorized(conn,state), do:
-    {true,conn,state}
-  def forbidden(conn,state), do:
-    {false,conn,state}
-  def allow_missing_post(conn,state), do:
-    {false,conn,state}
+  @doc """
+  Returning non-true values will result in `503 Service Unavailable`.
+  Default: `true`
+  """
+  def service_available(conn,state), do: {true,conn,state}
+
+  @doc """
+  Returning non-true values will result in `404 Not Found`.
+  Default: `true`
+  """
+  def resource_exists(conn,state), do: {true,conn,state}
+
+  @doc """
+  If this returns anything other than `true`, the response will be `401
+  Unauthorized`. The `string()` return value will be used as the value
+  in the `WWW-Authenticate` header, for example `Basic realm="Webmachine"`.
+  Default: `true`
+  """
+  def is_authorized(conn,state), do: {true,conn,state}
+
+  @doc """
+  Returning true will result in 403 Forbidden.
+  Default: `false`
+  """
+  def forbidden(conn,state), do: {false,conn,state}
+
+  @doc """
+  If the resource accepts POST requests to nonexistent resources, then this should return `true`.
+  Default: `false`
+  """
+  def allow_missing_post(conn,state), do: {false,conn,state}
+
   def malformed_request(conn,state), do:
     {false,conn,state}
   def uri_too_long(conn,state), do:

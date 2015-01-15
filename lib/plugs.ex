@@ -10,7 +10,7 @@ defmodule Ewebmachine.Plug do
       end
     end
   end
-  defmacro __using__(opts) do
+  defmacro __using__(_opts) do
     quote location: :keep do
       import Ewebmachine.Plug
       use Plug.Builder
@@ -49,7 +49,7 @@ defmodule Ewebmachine.Plug do
     end 
   end
 
-  defmacro handler(name,do: body), do:
+  defmacro defhandler(name,do: body), do:
     handler_quote(name,body)
 
   for resource_fun_name<-@resource_fun_names do
@@ -67,14 +67,19 @@ defmodule Ewebmachine.Plug do
   def pass(r,update_state), do: {:dictstate,r,update_state}
 end
 
-defmodule Ewebmachine.RoutingPlug do
+defmodule Ewebmachine.ResourcePlug do
   defmacro __using__(_) do
     quote location: :keep do
       use Plug.Router
-      import Ewebmachine.RoutingPlug
-      @wm_routes []
+      import Plug.Router, only: []
+      import Ewebmachine.ResourcePlug
+      @before_compile Ewebmachine.ResourcePlug
 
-      defp machine_send(conn, _opts) do
+      defp resource_match(conn, _opts) do
+        conn |> match(nil) |> dispatch(nil)
+      end
+
+      defp resource_send(conn, _opts) do
         if conn.private[:machine_init], 
           do: (conn |> Ewebmachine.send |> halt),
           else: conn
@@ -82,31 +87,32 @@ defmodule Ewebmachine.RoutingPlug do
     end
   end
 
-  defmacro match_resources do
+  defmacro __before_compile__(_env) do
     wm_routes =  Module.get_attribute __CALLER__.module, :wm_routes
-    quotes = for {route,wm_module,init_block}<-wm_routes do
+    route_matches = for {route,wm_module,init_block}<-Enum.reverse(wm_routes) do
       quote do
-        match unquote(route) do
+        Plug.Router.match unquote(route) do
           init = unquote(init_block)
           var!(conn) = put_private(var!(conn),:machine_init,init)
           unquote(wm_module).call(var!(conn),[])
         end
       end
     end
-    quote do unquote_splicing(quotes) end
+    final_match = if !match?({"/*"<>_,_,_},hd(wm_routes)), 
+      do: quote(do: Plug.Router.match _ do var!(conn) end)
+    quote do
+      unquote_splicing(route_matches)
+      unquote(final_match)
+    end
   end
 
   defp remove_first(":"<>e), do: e
+  defp remove_first("*"<>e), do: e
   defp remove_first(e), do: e
-  defp var_or_value({var,_,_}), do: var
-  defp var_or_value(e), do: e
 
   defp route_as_mod("/"), do: Root
-  defp route_as_mod([]), do: Root
-  defp route_as_mod(route) when is_binary(route), do:
+  defp route_as_mod(route), do:
     (route |> String.split("/") |> Enum.map(& &1 |> remove_first |> String.capitalize) |> Enum.join("."))
-  defp route_as_mod(route) when is_list(route), do:
-    (route |> Enum.map(& &1 |> var_or_value |> to_string |> String.capitalize) |> Enum.join("."))
   
   defmacro resource(route,do: init_block, after: body) do
     wm_module = Module.concat(__CALLER__.module,route_as_mod(route))
@@ -115,10 +121,9 @@ defmodule Ewebmachine.RoutingPlug do
     quote do
       defmodule unquote(wm_module) do
         use Ewebmachine.Plug
+        unquote(body)
         plug :machine_build
         plug :machine_run
-        unquote(body)
-        plug :machine_send
       end
     end
   end

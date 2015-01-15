@@ -13,7 +13,12 @@ defmodule Ewebmachine.Core.DSL do
 
   defmacro resource_call(fun) do quote do
     handler = var!(conn).private[:resource_handlers][unquote(fun)] || Ewebmachine
-    {reply, myconn, myuser_state} = apply(handler,unquote(fun),[var!(conn),var!(user_state)])
+    args = [var!(conn),var!(user_state)]
+    {reply, myconn, myuser_state} = term = apply(handler,unquote(fun),args)
+    if handler !== Ewebmachine do 
+      myconn = Ewebmachine.Log.debug_call(myconn,handler,unquote(fun),args,term)
+      IO.puts "handle call #{unquote(fun)}"
+    end
     {reply,var!(conn),var!(user_state)} = case reply do
       {:halt,code}-> #if halt, store current conn and fake reply
         myconn = Conn.put_private(myconn,:machine_halt_conn,myconn)
@@ -41,8 +46,7 @@ defmodule Ewebmachine.Core.DSL do
     params = (quote do: [var!(conn),var!(user_state)]) ++ params
     quote do
       def unquote(name)(unquote_splicing(params)) when unquote(guard) do
-        if var!(conn).private[:machine_log], do:
-          var!(conn) = Ewebmachine.Log.debug_decision(var!(conn),unquote(name))
+        var!(conn) = Ewebmachine.Log.debug_decision(var!(conn),unquote(name))
         reply = unquote(body)
         {reply,var!(conn),var!(user_state)}
       end

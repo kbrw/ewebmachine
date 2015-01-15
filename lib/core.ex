@@ -302,7 +302,9 @@ defmodule Ewebmachine.Core do
       if (exp=resource_call(:expires)), do:
         h(set_resp_header("Expires",rfc1123_date(exp)))
       f = Enum.find_value(resource_call(:content_types_provided),fn {t,f}->normalize_mtype(t)==ct && f end)
-      h(set_resp_body(h(encode_body(resource_call(f)))))
+      body = resource_call(f)
+      body = h(encode_body(body))
+      h(set_resp_body(body))
       d(v3o18b)
     else
       d(v3o18b)

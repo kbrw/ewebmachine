@@ -32,12 +32,26 @@ defmodule Ewebmachine.Log do
       |> Conn.put_private(:machine_log,id)
       |> Conn.put_private(:machine_init_at,:erlang.now)
       |> Conn.put_private(:machine_decisions,[])
+      |> Conn.put_private(:machine_calls,[])
+    else conn end
+  end
+  def debug_call(conn,module,function,in_args,out_term) do
+    if conn.private[:machine_log] do
+      Conn.put_private(conn,:machine_calls,
+        [{module,function,in_args,out_term}|conn.private.machine_calls])
     else conn end
   end
   def debug_decision(conn,decision) do
-    Conn.put_private(conn,:machine_decisions,[decision|conn.private.machine_decisions])
+    if conn.private[:machine_log] do
+      case Regex.run(~r/^v[0-9]([a-z]*[0-9]*)$/,to_string(decision)) do
+        [_,decision]->
+          conn
+          |> Conn.put_private(:machine_decisions,[{decision,Enum.reverse(conn.private.machine_calls)}|conn.private.machine_decisions])
+          |> Conn.put_private(:machine_calls,[])
+        _->conn
+      end
+    else conn end
   end
-
 end
 
 defmodule Ewebmachine.DebugPlug do
@@ -95,17 +109,19 @@ defmodule Ewebmachine.DebugPlug do
       headers: Enum.into(conn.resp_headers,%{}),
       body: (conn.resp_body || "")
     },
-    trace: [
+      trace: Enum.map((IO.puts(inspect(conn.private.machine_decisions,pretty: true)); Enum.reverse(conn.private.machine_decisions)), fn {decision,calls}->
       %{
-        d: "v3b13",
-        calls: [%{
-          module: "module",     
-          function: "function",
-          input: "inspect(input conn)",
-          output: "inspect(input conn)"
-        }]
+        d: decision,
+        calls: Enum.map(calls,fn {module,function,in_args,out_term}->
+          %{
+            module: inspect(module),
+            function: "#{function}",
+            input: inspect(in_args, pretty: true),
+            output: inspect(out_term, pretty: true)
+          }
+        end)
       }
-    ]
+    end)
   }
 
   defmodule EventHandler do
