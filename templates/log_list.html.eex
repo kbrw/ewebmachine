@@ -2,7 +2,9 @@
   <head>
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <script>
-      (new EventSource("/wm_debug/events")).addEventListener("new_query", window.location.reload)
+(new EventSource("/wm_debug/events")).addEventListener("new_query", function(){
+  window.location.reload()  
+})
     </script>
   </head>
   <body>
