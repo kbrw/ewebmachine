@@ -1,4 +1,5 @@
 defmodule Ewebmachine do
+  alias Plug.Conn
 
   def do_redirect(conn), do:
     Conn.put_private(conn, :resp_redirect, true)
@@ -10,7 +11,7 @@ defmodule Ewebmachine do
       conn
     else
       Conn.send_resp(conn)
-    end |> Conn.halt
+    end
   end
 
   def service_available(conn,state), do:

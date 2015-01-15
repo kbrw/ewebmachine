@@ -1,0 +1,17 @@
+<html>
+  <head>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <script>
+      (new EventSource("/wm_debug/events")).addEventListener("new_query", window.location.reload)
+    </script>
+  </head>
+  <body>
+    <h1>Last Ewebmachine Logs</h1>
+    <ul>
+      <%= for conn<-conns do %>
+          <li><%= conn.private.machine_init_at |> :calendar.now_to_local_time |> Ewebmachine.Core.Utils.rfc1123_date %> :  
+            <a href="/wm_debug/log/<%= conn.private.machine_log %>"><%= full_path(conn) %></a></li>
+      <% end %>
+    </ul>
+  </body>
+</html>

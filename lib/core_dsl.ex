@@ -1,4 +1,12 @@
 defmodule Ewebmachine.Core.DSL do
+
+  defmacro __using__(_opts) do quote do
+    import Ewebmachine.Core.DSL
+    import Ewebmachine.Core.API
+    import Ewebmachine.Core.Utils
+    @compile :nowarn_unused_vars
+  end end
+
   def sig_to_sigwhen({:when,_,[{name,_,params},guard]}), do: {name,params,guard}
   def sig_to_sigwhen({name,_,params}) when is_list(params), do: {name,params,true}
   def sig_to_sigwhen({name,_,_}), do: {name,[],true}
@@ -33,8 +41,8 @@ defmodule Ewebmachine.Core.DSL do
     params = (quote do: [var!(conn),var!(user_state)]) ++ params
     quote do
       def unquote(name)(unquote_splicing(params)) when unquote(guard) do
-        #if conn.private[:machine_debug], do: log_decision(unquote(name))
-        IO.puts "decide #{unquote(name)}"
+        if var!(conn).private[:machine_log], do:
+          var!(conn) = Ewebmachine.Log.debug_decision(var!(conn),unquote(name))
         reply = unquote(body)
         {reply,var!(conn),var!(user_state)}
       end
@@ -86,6 +94,8 @@ defmodule Ewebmachine.Core.API do
     conn = conn # halt machine when set response code, on respond
       |> Conn.put_private(:machine_halt_conn,nil)
       |> Conn.put_status(code)
+    if !conn.resp_body, do: conn = %{conn|resp_body: ""}
+    conn = %{conn|state: :set}
     :ok
   end
 
@@ -222,7 +232,7 @@ defmodule Ewebmachine.Core.Utils do
 
   defp prioritized_values(header) do
     header 
-    |> Plug.Conn.Utils.list(header)
+    |> Plug.Conn.Utils.list
     |> Enum.map(fn e->
         {q,v} = case String.split(e,~r"\s;\s", parts: 2) do
           [value,params] ->

@@ -1,10 +1,10 @@
 defmodule Ewebmachine.Core do
-  import Ewebmachine.Core.DSL
-  import Ewebmachine.Core.API
-  import Ewebmachine.Core.Utils
-  @compile :nowarn_unused_vars
+  use Ewebmachine.Core.DSL
 
-  decision v3, do: d(v3b13)
+  def v3(conn,user_state) do
+    {_,conn,_} = v3b13(Ewebmachine.Log.debug_init(conn),user_state)
+    conn
+  end
 
   @doc "Service Available"
   decision v3b13, do:
