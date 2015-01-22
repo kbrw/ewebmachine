@@ -83,3 +83,27 @@ decision path. The debug UI can be updated automatically on the
 requests.
 
 ![Debug UI example](https://raw.githubusercontent.com/awetzel/ewebmachine/master/doc/debug_ui.png)
+
+## Use Cowboy to serve the plug
+
+Create a simple supervision tree with only the Cowboy server adapter spec.
+
+```elixir
+defmodule MyApp do
+  use Application
+  def start(_type, _args), do:
+    Supervisor.start_link([
+        Plug.Adapters.Cowboy.child_spec(:http,FullApi,[], port: 4000)
+      ], strategy: :one_for_one)
+end
+```
+
+And add it as your application entry point in your `mix.exs`
+
+```elixir
+def application do
+  [applications: [:logger,:ewebmachine,:cowboy], mod: {MyApp,[]}]
+end
+defp deps, do:
+  [{:ewebmachine, "2.0.0"}, {:cowboy, "~> 1.0"}]
+```
