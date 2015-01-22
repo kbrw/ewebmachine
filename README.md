@@ -1,6 +1,8 @@
 Ewebmachine is a full rewrite with clean DSL and plug integration
 based on Webmachine from basho. 
 
+[![Build Status](https://travis-ci.org/awetzel/ewebmachine.svg?branch=master)](https://travis-ci.org/awetzel/ewebmachine)
+
 See the [generated documentation](http://hexdocs.pm/ewebmachine) for more detailed explanations.
 
 The principle is to go through the [HTTP decision tree](https://raw.githubusercontent.com/awetzel/ewebmachine/2.0-dev/doc/http_diagram.png)
