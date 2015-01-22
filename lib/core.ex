@@ -41,9 +41,12 @@ defmodule Ewebmachine.Core do
   decision v3b9a do
     case resource_call(:validate_content_checksum) do
       :not_validated ->
-        checksum = Base.decode64!(h(get_header_val("content-md5")))
-        body_hash = h(compute_body_md5)
-        if body_hash == checksum, do: d(v3b9b), else: d(400)
+        case Base.decode64(h(get_header_val("content-md5"))) do
+          {:ok,checksum}->
+            body_hash = h(compute_body_md5)
+            if body_hash == checksum, do: d(v3b9b), else: d(400)
+          _ -> d(400)
+        end
       false -> d(400)
       _ -> d(v3b9b)
     end
@@ -124,7 +127,7 @@ defmodule Ewebmachine.Core do
   decision v3f6 do
     {type,subtype,params} = h(get_metadata(:'content-type'))
     params = (char=h(get_metadata(:'chosen-charset'))) && Dict.put(params,:charset,char) || params
-    h(set_resp_header("Content-Type",format_mtype({type,subtype,params})))
+    h(set_resp_header("content-type",format_mtype({type,subtype,params})))
     case h(get_header_val("accept-encoding")) do
       nil -> if(h(choose_encoding("identity;q=1.0,*;q=0.5")), do: d(v3g7), else: d(406))
       _ -> d(v3f7)
@@ -355,7 +358,7 @@ defmodule Ewebmachine.Core do
   end
 
   helper accept_helper do
-    ct = h(get_header_val("Content-Type")) || "application/octet-stream"
+    ct = h(get_header_val("content-type")) || "application/octet-stream"
     {_,_,mparams}=mt = normalize_mtype(ct)
     h(set_metadata(:mediaparams,mparams))
     ct_accepted = resource_call(:content_types_accepted)
@@ -425,7 +428,7 @@ defmodule Ewebmachine.Core do
   
   helper respond(code) do
     if code == 304 do
-      h(remove_resp_header("Content-Type"))
+      h(remove_resp_header("content-type"))
       if (etag=resource_call(:generate_etag)), do:
         h(set_resp_header("ETag", quoted_string(etag)))
       if (exp=resource_call(:expires)), do:

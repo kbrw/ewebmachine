@@ -88,7 +88,7 @@ defmodule Ewebmachine.Builder.Handlers do
   end
 
   @resource_fun_names [
-    :resource_exists,:service_available,:is_authorized,:forbidden,:allow_missing_post,:malformed_request,
+    :resource_exists,:service_available,:is_authorized,:forbidden,:allow_missing_post,:malformed_request,:known_methods,
     :base_uri,:uri_too_long,:known_content_type,:valid_content_headers,:valid_entity_length,:options,:allowed_methods,
     :delete_resource,:delete_completed,:post_is_create,:create_path,:process_post,:content_types_provided,
     :content_types_accepted,:charsets_provided,:encodings_provided,:variances,:is_conflict,:multiple_choices,
