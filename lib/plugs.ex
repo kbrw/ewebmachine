@@ -1,130 +1,234 @@
-defmodule Ewebmachine.Plug do
-  defmacro __before_compile__(_env) do
-    quote do
-      defp machine_build(conn, opts) do
-        if opts && (init=opts[:init]), do:
-          conn = put_private(conn,:machine_init,init)
-        Plug.Conn.put_private(conn,
-          :resource_handlers,
-          Dict.merge(conn.private[:resource_handlers] || %{},@resource_handlers))
-      end
+
+defmodule Ewebmachine.Plug.Run do
+  @moduledoc ~S"""
+    Plug passing your `conn` through the [HTTP decision tree](http_diagram.png)
+    to fill its status and response.
+
+    This plug does not send the HTTP result, instead the `conn`
+    result of this plug must be sent with the plug
+    `Ewebmachine.Plug.Send`. This is useful to customize the Ewebmachine result
+    after the run, for instance to customize the error body (void by default).
+    
+    - Decisions are make according to handlers set in `conn.private[:resource_handlers]` 
+      (`%{handler_name: handler_module}`) where `handler_name` is one
+      of the handler function of `Ewebmachine.Handlers` and
+      `handler_module` is the module implementing it.
+    - Initial user state (second parameter of handler function) is
+      taken from `conn.private[:machine_init]`
+
+    `Ewebmachine.Builder.Handlers` `:add_handler` plug allows you to
+    set these parameters in order to use this Plug.
+  """
+  def init(_opts), do: []
+  def call(conn,_opts), do:
+    Ewebmachine.Core.v3(conn,conn.private[:machine_init])
+end
+
+defmodule Ewebmachine.Plug.Send do
+  @moduledoc ~S"""
+  Calling this plug will send the response and halt the connection
+  pipeline if the `conn` has passed through an `Ewebmachine.Plug.Run`.
+  """
+  import Plug.Conn
+  def init(_opts), do: []
+  def call(conn,_opts) do
+    if conn.private[:machine_init] do
+      if (stream=conn.private[:machine_body_stream]) do
+        conn = send_chunked(conn,conn.status)
+        Enum.each(stream,&chunk(conn,&1))
+        conn
+      else
+        send_resp(conn)
+      end |> halt
+    else
+      conn
     end
   end
-  defmacro __using__(_opts) do
-    quote location: :keep do
-      import Ewebmachine.Plug
-      use Plug.Builder
-      @before_compile Ewebmachine.Plug
-      @resource_handlers %{}
-      ping do: :pong
+end
 
-      defp machine_run(conn,init_state) do
-        Ewebmachine.Core.v3(conn,conn.private[:machine_init])
-      end
+defmodule Ewebmachine.Plug.Debug do
+  @moduledoc ~S"""
+  A ewebmachine debug UI at `/wm_debug`
 
-      defp machine_send(conn, _opts) do
-        if conn.private[:machine_init], 
-          do: (conn |> Ewebmachine.send |> halt),
-          else: conn
-      end
+  Add it before `Ewebmachine.Plug.Run` in your plug pipeline when you
+  want debugging facilities.
+
+  ```
+  if Mix.env == :dev, do: plug Ewebmachine.Plug.Debug
+  ```
+
+  Then go to `http://youhost:yourport/wm_debug`, you will see the
+  request list since the launch of your server. Click on any to get
+  the ewebmachine debugging UI. The list will be automatically
+  updated on new query.
+
+  The ewebmachine debugging UI 
+  
+  - shows you the HTTP decision path taken by the request to the response. Every
+  - the red decisions are the one where decisions differs from the
+    default one because of a handler implementation :
+    - click on them, then select any handler available in the right
+      tab to see the `conn`, `state` inputs of the handler and the
+      response.
+  - The response and request right tab shows you the request and
+    result at the end of the ewebmachine run.
+  - click on "auto redirect on new query" and at every request, your
+    browser will navigate to the debugging UI of the new request (you
+    can still use back/next to navigate through requests)
+
+  ![Debug UI example](debug_ui.png)
+  """
+  use Plug.Router
+  alias Plug.Conn
+  alias Ewebmachine.Log
+  plug Plug.Static, at: "/wm_debug/static", from: :ewebmachine
+  plug :match
+  plug :dispatch
+
+  require EEx
+  EEx.function_from_file :defp, :render_logs, "templates/log_list.html.eex", [:conns]
+  EEx.function_from_file :defp, :render_log, "templates/log_view.html.eex", [:logconn,:conn]
+
+  get "/wm_debug/log/:id" do
+    if (logconn=Log.get(id)) do
+      conn |> send_resp(200,render_log(logconn,conn)) |> halt
+    else
+      conn |> put_resp_header("location","/wm_debug") |> send_resp(302,"") |> halt
     end
   end
 
-  @resource_fun_names [
-    :resource_exists,:service_available,:is_authorized,:forbidden,:allow_missing_post,:malformed_request,
-    :base_uri,:uri_too_long,:known_content_type,:valid_content_headers,:valid_entity_length,:options,:allowed_methods,
-    :delete_resource,:delete_completed,:post_is_create,:create_path,:process_post,:content_types_provided,
-    :content_types_accepted,:charsets_provided,:encodings_provided,:variances,:is_conflict,:multiple_choices,
-    :previously_existed,:moved_permanently,:moved_temporarily,:last_modified,:expires,:generate_etag,:finish_request, :ping
-  ]
-  def sig_to_sigwhen({:when,_,[{name,_,params},guard]}), do: {name,params,guard}
-  def sig_to_sigwhen({name,_,params}), do: {name,params,true}
-
-  def handler_quote(name,body) do
-    quote do
-      @resource_handlers Dict.put(@resource_handlers,unquote(name),__MODULE__)
-      def unquote(name)(var!(conn),var!(state)) do
-        wrap_response(unquote(body),var!(conn),var!(state))
-      end
-    end 
+  get "/wm_debug" do
+    html = render_logs(Log.list)
+    conn |> send_resp(200,html) |> halt
   end
 
-  defmacro defhandler(name,do: body), do:
-    handler_quote(name,body)
+  get "/wm_debug/events" do
+    conn=conn |> put_resp_header("content-type", "text/event-stream") |> send_chunked(200)
+    GenEvent.add_mon_handler(Ewebmachine.Events,{__MODULE__.EventHandler,make_ref},conn)
+    receive do {:gen_event_EXIT,_,_} -> halt(conn) end
+  end
 
-  for resource_fun_name<-@resource_fun_names do
-    Module.eval_quoted(Ewebmachine.Plug, quote do
-      defmacro unquote(resource_fun_name)(do: body) do
-        name = unquote(resource_fun_name)
-        handler_quote(name,body)
-      end
+  match _ do
+    conn 
+    |> put_private(:machine_debug,true)
+    |> register_before_send(fn conn->
+        if (log=conn.private[:machine_log]) do
+          Ewebmachine.Log.put(conn)
+          GenEvent.notify(Ewebmachine.Events,log)
+        end
+        conn
     end)
   end
 
-  def wrap_response({:dictstate,r,newstate},rq,state), do: {r,rq,Keyword.merge(state,newstate)}
-  def wrap_response({_,_,_}=tuple,_,_), do: tuple
-  def wrap_response(r,rq,state), do: {r,rq,state}
-  def pass(r,update_state), do: {:dictstate,r,update_state}
-end
-
-defmodule Ewebmachine.ResourcePlug do
-  defmacro __using__(_) do
-    quote location: :keep do
-      use Plug.Router
-      import Plug.Router, only: []
-      import Ewebmachine.ResourcePlug
-      @before_compile Ewebmachine.ResourcePlug
-
-      defp resource_match(conn, _opts) do
-        conn |> match(nil) |> dispatch(nil)
-      end
-
-      defp resource_send(conn, _opts) do
-        if conn.private[:machine_init], 
-          do: (conn |> Ewebmachine.send |> halt),
-          else: conn
-      end
+  defmodule EventHandler do
+    use GenEvent
+    @moduledoc false
+    def handle_event(log_id,conn) do #Send all builder events to browser through SSE
+      Plug.Conn.chunk(conn, "event: new_query\ndata: #{log_id}\n\n")
+      {:ok, conn}
     end
   end
 
-  defmacro __before_compile__(_env) do
-    wm_routes =  Module.get_attribute __CALLER__.module, :wm_routes
-    route_matches = for {route,wm_module,init_block}<-Enum.reverse(wm_routes) do
-      quote do
-        Plug.Router.match unquote(route) do
-          init = unquote(init_block)
-          var!(conn) = put_private(var!(conn),:machine_init,init)
-          unquote(wm_module).call(var!(conn),[])
-        end
-      end
-    end
-    final_match = if !match?({"/*"<>_,_,_},hd(wm_routes)), 
-      do: quote(do: Plug.Router.match _ do var!(conn) end)
-    quote do
-      unquote_splicing(route_matches)
-      unquote(final_match)
+  @doc false
+  def to_draw(conn), do: %{
+    request: """
+    #{conn.method} #{Conn.full_path(conn)} HTTP/1.1
+    #{html_escape format_headers(conn.req_headers)}
+    #{html_escape body_of(conn)}
+    """,
+    response: %{
+      http: """
+      HTTP/1.1 #{conn.status} #{http_label(conn.status)} 
+      #{html_escape format_headers(conn.resp_headers)}
+      #{html_escape (conn.resp_body || "some chunked body")}
+      """,
+      code: conn.status
+    },
+    trace: Enum.map(Enum.reverse(conn.private.machine_decisions), fn {decision,calls}->
+      %{
+        d: decision,
+        calls: Enum.map(calls,fn {module,function,[in_conn,in_state],{resp,out_conn,out_state}}->
+          %{
+            module: inspect(module),
+            function: "#{function}",
+            input: """
+            state = #{html_escape inspect(in_state, pretty: true)}
+
+            conn = #{html_escape inspect(%{in_conn|private: %{}}, pretty: true)}
+            """,
+            output: """
+            response = #{html_escape inspect(resp, pretty: true)}
+
+            state = #{html_escape inspect(out_state, pretty: true)}
+
+            conn = #{html_escape inspect(%{out_conn|private: %{}}, pretty: true)}
+            """
+          }
+        end)
+      }
+    end)
+  }
+
+  defp body_of(conn) do
+    case Conn.read_body(conn) do
+      {:ok,body,_}->body
+      _ -> ""
     end
   end
 
-  defp remove_first(":"<>e), do: e
-  defp remove_first("*"<>e), do: e
-  defp remove_first(e), do: e
-
-  defp route_as_mod("/"), do: Root
-  defp route_as_mod(route), do:
-    (route |> String.split("/") |> Enum.map(& &1 |> remove_first |> String.capitalize) |> Enum.join("."))
-  
-  defmacro resource(route,do: init_block, after: body) do
-    wm_module = Module.concat(__CALLER__.module,route_as_mod(route))
-    old_wm_routes = Module.get_attribute(__CALLER__.module, :wm_routes) || []
-    Module.put_attribute __CALLER__.module, :wm_routes, [{route,wm_module,init_block}|old_wm_routes]
-    quote do
-      defmodule unquote(wm_module) do
-        use Ewebmachine.Plug
-        unquote(body)
-        plug :machine_build
-        plug :machine_run
-      end
-    end
+  defp format_headers(headers) do
+    headers |> Enum.map(fn {k,v}->"#{k}: #{v}\n" end) |> Enum.join
   end
+
+  defp html_escape(data), do:
+    to_string(for(<<char::utf8<-IO.iodata_to_binary(data)>>, do: escape_char(char)))
+  defp escape_char(?<), do: "&lt;"
+  defp escape_char(?>), do: "&gt;"
+  defp escape_char(?&), do: "&amp;"
+  defp escape_char(?"), do: "&quot;"
+  defp escape_char(?'), do: "&#39;"
+  defp escape_char(c), do: c
+
+  defp http_label(100), do: "Continue"
+  defp http_label(101), do: "Switching Protocol"
+  defp http_label(200), do: "OK"
+  defp http_label(201), do: "Created"
+  defp http_label(202), do: "Accepted"
+  defp http_label(203), do: "Non-Authoritative Information"
+  defp http_label(204), do: "No Content"
+  defp http_label(205), do: "Reset Content"
+  defp http_label(206), do: "Partial Content"
+  defp http_label(300), do: "Multiple Choice"
+  defp http_label(301), do: "Moved Permanently"
+  defp http_label(302), do: "Found"
+  defp http_label(303), do: "See Other"
+  defp http_label(304), do: "Not Modified"
+  defp http_label(305), do: "Use Proxy"
+  defp http_label(306), do: "unused"
+  defp http_label(307), do: "Temporary Redirect"
+  defp http_label(308), do: "Permanent Redirect"
+  defp http_label(400), do: "Bad Request"
+  defp http_label(401), do: "Unauthorized"
+  defp http_label(402), do: "Payment Required"
+  defp http_label(403), do: "Forbidden"
+  defp http_label(404), do: "Not Found"
+  defp http_label(405), do: "Method Not Allowed"
+  defp http_label(406), do: "Not Acceptable"
+  defp http_label(407), do: "Proxy Authentication Required"
+  defp http_label(408), do: "Request Timeout"
+  defp http_label(409), do: "Conflict"
+  defp http_label(410), do: "Gone"
+  defp http_label(411), do: "Length Required"
+  defp http_label(412), do: "Precondition Failed"
+  defp http_label(413), do: "Request Entity Too Large"
+  defp http_label(414), do: "Request-URI Too Long"
+  defp http_label(415), do: "Unsupported Media Type"
+  defp http_label(416), do: "Requested Range Not Satisfiable"
+  defp http_label(417), do: "Expectation Failed"
+  defp http_label(500), do: "Internal Server Error"
+  defp http_label(501), do: "Not Implemented"
+  defp http_label(502), do: "Bad Gateway"
+  defp http_label(503), do: "Service Unavailable"
+  defp http_label(504), do: "Gateway Timeout"
+  defp http_label(505), do: "HTTP Version Not Supported"
 end

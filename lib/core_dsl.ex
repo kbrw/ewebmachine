@@ -1,4 +1,22 @@
 defmodule Ewebmachine.Core.DSL do
+  ## Macros and helpers defining the DSL for the Ewebmachine decision core :
+  ## It mainly hides the `conn` and `user_state` rebindings and logic.
+  ## The goal of the DSL was to mimic the one from the Basho
+  ## implementation which uses the process dictionnary in order to reuse
+  ## their decision core implementation.
+
+  ## Usage : 
+
+  ##     decision mydecision(arg1,arg2) do # def mydecision(conn,user_state,arg1,arg2)
+  ##       exists? = resource_call(:resource_exists)
+  ##       # here : the right module handler in found in the conn
+  ##       # then conn and user_state are rebinded according to its return
+  ##       d(otherdecision(arg3)) 
+  ##       # if conn is halted, then return it, else call otherdecision(conn,user_state,arg3)
+  ##       h(anhelper) call anhelper(conn,user_state), same as d() without the halt logic
+  ##     end
+  ##     helper myhelper(arg2) do :toto end #same as decision myhelper(arg2)
+  @moduledoc false
 
   defmacro __using__(_opts) do quote do
     import Ewebmachine.Core.DSL
@@ -12,10 +30,10 @@ defmodule Ewebmachine.Core.DSL do
   def sig_to_sigwhen({name,_,_}), do: {name,[],true}
 
   defmacro resource_call(fun) do quote do
-    handler = var!(conn).private[:resource_handlers][unquote(fun)] || Ewebmachine
+    handler = var!(conn).private[:resource_handlers][unquote(fun)] || Ewebmachine.Handlers
     args = [var!(conn),var!(user_state)]
     {reply, myconn, myuser_state} = term = apply(handler,unquote(fun),args)
-    if handler !== Ewebmachine do 
+    if handler !== Ewebmachine.Handlers do 
       myconn = Ewebmachine.Log.debug_call(myconn,handler,unquote(fun),args,term)
     end
     {reply,var!(conn),var!(user_state)} = case reply do
@@ -77,9 +95,7 @@ end
 defmodule Ewebmachine.Core.API do
   import Ewebmachine.Core.DSL
   alias Plug.Conn
-
-  helper base_uri, do: 
-    "#{conn.scheme}://#{conn.host}#{port_suffix(conn.scheme,conn.port)}"
+  @moduledoc false
 
   helper method, do: 
     conn.method
@@ -121,11 +137,10 @@ defmodule Ewebmachine.Core.API do
   helper resp_body, do:
     (conn.private[:machine_body_stream] || conn.resp_body)
 
-  helper set_resp_body(%Stream{}=body), do:
-    (conn = Conn.put_private(conn,:machine_body_stream,body); :ok)
-
-  helper set_resp_body(body), do:
+  helper set_resp_body(body) when is_binary(body) or is_list(body), do:
     (conn = %{conn | resp_body: body}; :ok)
+  helper set_resp_body(body), do: #if not an IO List, then it should be an enumerable
+    (conn = Conn.put_private(conn,:machine_body_stream,body); :ok)
 
   helper has_resp_body, do:
     (!is_nil(conn.resp_body) or !is_nil(conn.private[:machine_body_stream]))
@@ -141,15 +156,17 @@ defmodule Ewebmachine.Core.API do
     :crypto.hash(:md5,body)
   end
 
-  def port_suffix(:http,80), do: ""
-  def port_suffix(:https,443), do: ""
-  def port_suffix(_,port), do: ":#{port}"
-
   def first_or_nil([v|_]), do: v
   def first_or_nil(_), do: nil
 end
 
 defmodule Ewebmachine.Core.Utils do
+  @moduledoc "HTTP utility module"
+
+  @type norm_content_type :: {type::String.t,subtype::String.t,params::map}
+
+  @doc "convert any content type representation (see spec) into a `norm_content_type`"
+  @spec normalize_mtype({type::String.t,params::map} | type::String.t | norm_content_type) :: norm_content_type
   def normalize_mtype({type,params}) do
     case String.split(type) do
       [type,subtype]->{type,subtype,params}
@@ -164,11 +181,20 @@ defmodule Ewebmachine.Core.Utils do
     end
   end
 
+  @doc "format a `norm_content_type` into an HTTP content type header"
+  @spec format_mtype(norm_content_type) :: String.t
   def format_mtype({type,subtype,params}) do
     params = params |> Enum.map(fn {k,v}->";#{k}=#{v}" end) |> Enum.join
     "#{type}/#{subtype} #{params}"
   end
 
+  @doc """
+  HTTP Content negociation, get the content type to send from : 
+
+  - `accept_header`, the HTTP header `Accept`
+  - `ct_provided`, the list of provided content types
+  """
+  @spec choose_media_type([norm_content_type],String.t) :: norm_content_type
   def choose_media_type(ct_provided,accept_header) do
     accepts = accept_header |> Plug.Conn.Utils.list |> Enum.map(&Plug.Conn.Utils.media_type/1)
     accepts = for {:ok,type,subtype,params}<-accepts do 
@@ -182,11 +208,15 @@ defmodule Ewebmachine.Core.Utils do
     end)
   end
 
+  @doc "Remove quotes from HTTP quoted string"
   def quoted_string(value), do: 
     Plug.Conn.Utils.token(value)
+  @doc "Get the string list from a comma separated list of HTTP quoted strings"
   def split_quoted_strings(str), do:
     (str |> Plug.Conn.Utils.list |> Enum.map(&Plug.Conn.Utils.token/1))
 
+  @doc "Convert a calendar date to a rfc1123 date string"
+  @spec rfc1123_date({{year::integer,month::integer,day::integer}, {h::integer, min::integer, sec::integer}}) :: String.t
   def rfc1123_date({{yyyy, mm, dd}, {hour, min, sec}}) do
     day_number = :calendar.day_of_the_week({yyyy, mm, dd})
     :io_lib.format('~s, ~2.2.0w ~3.s ~4.4.0w ~2.2.0w:~2.2.0w:~2.2.0w GMT',
@@ -194,16 +224,29 @@ defmodule Ewebmachine.Core.Utils do
                       yyyy, hour, min, sec]) |> IO.iodata_to_binary
   end
 
+  @doc "Convert rfc1123 or rfc850 to :calendar dates"
+  @spec convert_request_date(String.t) :: {{year::integer,month::integer,day::integer}, {h::integer, min::integer, sec::integer}}
   def convert_request_date(date) do
-    try do
-      :httpd_util.convert_request_date(date)
-    catch
-      _,_ -> :bad_date
-    end
+    try do :httpd_util.convert_request_date('#{date}') catch _,_ -> :bad_date end
   end
 
+  @doc """
+  HTTP Encoding negociation, get the encoding to use from : 
+
+  - `acc_enc_hdr`, the HTTP header `Accept-Encoding`
+  - `encs`, the list of supported encoding
+  """
+  @spec choose_encoding([String.t],String.t) :: String.t
   def choose_encoding(encs,acc_enc_hdr), do:
     choose(encs,acc_enc_hdr,"identity")
+
+  @doc """
+  HTTP Charset negociation, get the charset to use from : 
+
+  - `acc_char_hdr`, the HTTP header `Accept-Charset`
+  - `charsets`, the list of supported charsets
+  """
+  @spec choose_charset([String.t],String.t) :: String.t
   def choose_charset(charsets,acc_char_hdr), do:
     choose(charsets,acc_char_hdr,"utf8")
 

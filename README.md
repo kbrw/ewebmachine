@@ -1,197 +1,75 @@
-# Ewebmachine #
+Ewebmachine is a full rewrite with clean DSL and plug integration
+based on Webmachine from basho. 
 
-Ewebmachine is a very simple Elixir DSL around Webmachine
-from basho :
-https://github.com/basho/webmachine
+See the [generated documentation](http://hexdocs.pm/ewebmachine) for more detailed explanations.
 
-## Ewebmachine modules ##
+The principle is to go through the [HTTP decision tree](https://raw.githubusercontent.com/awetzel/ewebmachine/2.0-dev/doc/http_diagram.png)
+and make decisions according to response of some callbacks called "handlers".
 
-Resources module are grouped into a module which has to use
-Ewebmachine.
+To do that, the library gives you 3 plugs and 2 plug pipeline builders :
 
-```elixir
-defmodule MyApp1 do
-  use Ewebmachine
+- `Ewebmachine.Plug.Run` go through the HTTP decision tree and fill
+  the `conn` response according to it
+- `Ewebmachine.Plug.Send` is used to send a conn set with `Ewebmachine.Plug.Run`
+- `Ewebmachine.Plug.Debug` gives you a debugging web UI to see the
+  HTTP decision path taken by each request.
+- `Ewebmachine.Builder.Handlers` gives you helpers macros and a
+  `:add_handler` plug to add `handlers` as defined  in
+  `Ewebmachine.Handlers` to your conn, and set the initial user state.
+- `Ewebmachine.Builder.Resources` gives you a `resource` macro to
+  define at the same time an `Ewebmachine.Builder.Handlers` and the
+  matching spec to use it, and a plug `:resource_match` to do the
+  match and execute the associated plug.
 
-  resource ['hello',:name] do
-    to_html do:
-      """
-      <html>
-        <body>
-          <h1> Hello #{:wrq.path_info(:name,_req)} </h1>
-        </body>
-      </html>
-      """
-  end
-```
-
-Each "resource" declares a webmachine resource module. The
-resource takes the route as a parameter, so that 
-MyApp1.routes returns the list of webmachine dispatch rules
-corresponding to the resources declared in MyApp1.
-
-## Default Supervisor ##
-
-Ewebmachine.Sup is a default supervisor for web application, it
-launches mochiweb configured to use webmachine with the following
-configuration options (`start_link` dictlist parameter):
-
-* *listen ip* : default to "0.0.0.0"
-* *listen port* : default to 7272
-* *log_dir* : default to "priv/log"
-* *modules* : lists the ewebmachine module routes to be include, mandatory
-
-## Initial State ##
-
-An initial state (which is used in webmachine "init" function)
-can be declared with `ini`, the default one is a list (because of the resource
-        function response shortut described below)
+## Example usage
 
 ```elixir
-resource [] do
-  ini [:init]
-end
-```
+defmodule MyJSONApi do 
+  use Ewebmachine.Builder.Handlers
+  plug :cors
+  plug :add_handlers, init: %{}
 
-## Webmachine debug mode ##
+  content_types_provided do: ["application/json": :to_json]
+  defh to_json, do: Poison.encode!(state[:json_obj])
 
-The trace mode is activated for every resources when executed in
-Mix *dev* environment. Traces are stored in directory defined by
-`{:webmachine,:trace_dir}` if defined, else in `/tmp`.
-
-Default Supervisor add the `/debug` route to access the
-webmachine traces in *dev* environment.
-
-## Resource Functions ##
-
-Resource functions can be declared directly by name,
-body-producing function must start with `to_*` or
-`from_*`. Every resource functions are declared without
-ReqData and Context parameters declaration, which are implicitly
-declared as variable `\_req` and `_ctx`.
-
-###  Resource functions response shortcuts ###
-
-The resource functions response is wrap so that you replace the standard
-{res,req,ctx} webmachine response by :
-
-* `res` is a shortcut to `{res,_req,_ctx}`
-* `pass(res, opt1: value1, opt2: value2)` is a shortcut to
-  `{res,_req,updated_ctx}` where `updated_ctx` is the listdict merge between
-  old listdict state and keywords arguments (opt1,opt2 here), works only if
-  `_ctx` is a dictlist
-
-So for instance, the following resource functions are equivalent :
-
-```elixir
-resource_exists do: true
-resource_exists do: {true,_req,_ctx}
-```
-
-And you can transmit some variable in the context like this :
-
-```elixir
-resource ['user',:name] do
-  resource_exists do
-     user = User.get(:wrq.path_info(:name,_req))
-     pass user != nil, user: user
-  end
-  to_html do: (_ctx[:user] |> template("user_template"))
-end
-```
-
-## Example usage ##
-
-Declare two ewebmachine module : 
-
-```elixir
-defmodule WebMain do
-  use Ewebmachine
-
-  resource [] do
-    to_html do: "<html><body>Hello world</body>"
-  end
-
-  resource['sitemap'] do
-    content_types_provided do: [{'application/xml',:to_xml}]
-    to_xml do
-      """
-      <?xml version="1.0" encoding="UTF-8"?>
-      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-      <url>
-          <loc>http://mon-domaine.fr/</loc>
-          <lastmod>2012-12-15</lastmod>
-          <changefreq>daily</changefreq>
-          <priority>1</priority>
-      </url>
-      </urlset>
-      """
-    end
-  end
+  defp cors(conn,_), do: 
+    put_resp_header(conn,"Access-Control-Allow-Origin","*")
 end
 
-defmodule WebContact do
-  use Ewebmachine
+defmodule FullApi do
+  use Ewebmachine.Builder.Resources
+  if Mix.env == :dev, do: plug Ewebmachine.Plug.Debug
+  # pre plug, for instance you can put plugs defining common handlers
+  plug :resource_match
+  plug Ewebmachine.Plug.Run
+  # customize ewebmachine result, for instance make an error page handler plug
+  plug Ewebmachine.Plug.Send
+  # plug after that will be executed only if no ewebmachine resources has matched
 
-  resource ['contact'] do
-    to_html do: "<html><body>contact page</body>"
+  resource "/hello/:name" do %{name: name} after 
+    plug MyJSONApi
+    content_types_provided do: ['application/xml': :to_xml]
+    defh to_xml, do: "<Person><name>#{state.name}</name>"
+  end
+
+  resource "/*path" do %{path: Enum.join(path,"/")} after
+    resource_exists do:
+      File.regular?(path state.path)
+    content_types_provided do:
+      [{state.path|>Plug.MIME.path|>default_plain,:to_content}]
+    defh to_content, do:
+      File.stream!(path(state.path),[],300_000_000)
+    defp path(relative), do: "#{:code.priv_dir :ewebmachine_example}/web/#{relative}"
+    defp default_plain("application/octet-stream"), do: "text/plain"
+    defp default_plain(type), do: type
   end
 end
 ```
 
-Then to launch the webserver, add the supervisor in your App tree with the
-Ewebmachine.Sup.start_link functions. You can configure here the port/ip and
-the ewebmachine modules to be included.
+## Debug UI 
 
-```elixir
-defmodule MySup do
-  use Supervisor.Behaviour
-  def start_link, do: :supervisor.start_link({:local,__MODULE__},__MODULE__,[])
-  def init([]) do
-    supervise([
-      supervisor(Ewebmachine.Sup,[[modules: [WebMain,WebContact],port: 8080]]),
-      supervisor(MyOtherSup,[])
-    ], strategy: :one_for_one)
-  end
-end
-```
+Go to `/wm_debug` to see precedent requests and debug there HTTP
+decision path. The debug UI can be updated automatically on the
+requests.
 
-##  Example Configuration
-
-As configuration of `Ewebmachine.Sup` is passed "as is" to
-`webmachine_mochiweb` then to `mochiweb_socket`, you can configure your entire
-configuration as you wish when launching the supervisors.
-
-Below an example configuration : listen HTTP on 0.0.0.0:80 and ::80 with a
-redirect handler => https://samehost/samepath
-then listen HTTPS on 0.0.0.0:443 and ::443 with applications handlers.
-
-```elixir
-defmodule SSLRedirect do
-  use Ewebmachine
-  resource [:*] do
-    resource_exists do: false
-    previously_existed do: true
-    moved_permanently do:
-      {true,'https://#{hostname(_req)}#{:wrq.raw_path(_req)}'}
-    defp hostname(req), do:
-      "#{:wrq.get_req_header('host',req)}"|>String.split(":")|>Enum.at(0)
-  end
-end
-defmodule MySup do
-  use Supervisor.Behaviour
-  def start_link, do: :supervisor.start_link({:local,__MODULE__},__MODULE__,[])
-  def init([]) do
-    http = [{"0.0.0.0",80},{"::",80}]
-    https = [{"0.0.0.0","/etc/certs/my.crt","/etc/certs/my.pem"},{"::","/etc/certs/my.crt","/etc/certs/my.pem"}]
-    supervise(
-        (http|>Enum.map(fn {ip,port}-> 
-          supervisor(Ewebmachine.Sup,[[modules: [SSLRedirect],ip: '#{ip}', port: port ]],id: :"web#{inspect ip}#{port}")
-        end))++
-        (https|>Enum.map(fn {ip,cert,key}-> 
-          supervisor(Ewebmachine.Sup,[[modules: [WebMain,WebContact],ip: '#{ip}', port: 443, ssl: true, ssl_opts: [certfile: '#{cert}', keyfile: '#{key}']]],id: :"web#{inspect ip}443")
-        end))
-      ], strategy: :one_for_all)
-  end
-end
-```
+![Debug UI example](https://raw.githubusercontent.com/awetzel/ewebmachine/2.0-dev/doc/debug_ui.png)
