@@ -7,7 +7,7 @@ defmodule Ewebmachine.Mixfile do
       docs: [
         main: "Ewebmachine",
         source_url: "https://github.com/awetzel/ewebmachine",
-        source_ref: "2.0-dev"
+        source_ref: "master"
       ],
       deps: [
         {:plug, []},
