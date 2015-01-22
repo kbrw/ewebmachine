@@ -49,9 +49,15 @@ defmodule FullApi do
   # plug after that will be executed only if no ewebmachine resources has matched
 
   resource "/hello/:name" do %{name: name} after 
-    plug MyJSONApi
     content_types_provided do: ['application/xml': :to_xml]
     defh to_xml, do: "<Person><name>#{state.name}</name>"
+  end
+
+  resource "/hello/json/:name" do %{name: name} after 
+    plug MyJSONApi #this is also a plug pipeline
+    allowed_methods do: ["GET","DELETE"]
+    resource_exists do: pass((user=DB.get(state.name)) !== nil, json_obj: user
+    delete_resource do: DB.delete(state.name)
   end
 
   resource "/*path" do %{path: Enum.join(path,"/")} after
