@@ -192,7 +192,7 @@ defmodule Ewebmachine.Core do
     if(h(get_header_val("if-none-match")) == "*", do: d(v3j18), else: d(v3k13))
   ## "GET or HEAD?"
   decision v3j18, do:
-    if(h(method) in ['GET','HEAD'], do: d(304), else: d(412))
+    if(h(method) in ["GET","HEAD"], do: d(304), else: d(412))
   ## "Moved permanently?"
   decision v3k5 do
     case resource_call(:moved_permanently) do
@@ -382,11 +382,11 @@ defmodule Ewebmachine.Core do
     chosen_cset = h(get_metadata(:'chosen-charset'))
     charsetter = case resource_call(:charsets_provided) do
       :no_charset -> &(&1)
-      cp -> Enum.find_value(cp, fn {c,f}-> (c == chosen_cset) && f end) || &(&1)
+      cp -> Enum.find_value(cp, fn {c,f}-> (to_string(c) == chosen_cset) && f end) || &(&1)
     end
     chosen_enc = h(get_metadata(:'content-encoding'))
     encoder = Enum.find_value(resource_call(:encodings_provided), 
-                fn {enc,f}-> (enc == chosen_enc) && f end) || &(&1)
+                fn {enc,f}-> (to_string(enc) == chosen_enc) && f end) || &(&1)
     case body do
       body when is_binary(body) or is_list(body)-> body |> IO.iodata_to_binary |> charsetter.() |> encoder.()
       _-> body |> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
@@ -395,7 +395,7 @@ defmodule Ewebmachine.Core do
   
   helper choose_encoding(acc_enc_hdr) do
     enc_provided = resource_call(:encodings_provided)
-    encs = for {enc,_}<-enc_provided, do: enc
+    encs = for {enc,_}<-enc_provided, do: to_string(enc)
     if(chosen_enc=choose_encoding(encs, acc_enc_hdr)) do
       if chosen_enc !== "identity", do:
         h(set_resp_header("Content-Encoding",chosen_enc))
@@ -408,7 +408,7 @@ defmodule Ewebmachine.Core do
     case resource_call(:charsets_provided) do
       :no_charset -> :no_charset
       cl ->
-        charsets = for {cset,_f}<-cl, do: cset
+        charsets = for {cset,_f}<-cl, do: to_string(cset)
         if (charset=choose_charset(charsets, acc_char_hdr)) do
           h(set_metadata(:'chosen-charset',charset))
           charset
