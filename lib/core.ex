@@ -389,7 +389,7 @@ defmodule Ewebmachine.Core do
                 fn {enc,f}-> (enc == chosen_enc) && f end) || &(&1)
     case body do
       body when is_binary(body) or is_list(body)-> body |> IO.iodata_to_binary |> charsetter.() |> encoder.()
-      _-> body #|> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
+      _-> body |> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
     end
   end
   
