@@ -24,7 +24,8 @@ defmodule Ewebmachine.Mixfile do
       package: [links: %{"Source"=>"http://github.com/awetzel/ewebmachine",
                          "Doc"=>"http://hexdocs.pm/ewebmachine"},
                 contributors: ["Arnaud Wetzel"],
-                licenses: ["MIT"]] ]
+                licenses: ["MIT"],
+                files: ["lib", "priv", "mix.exs", "README*", "templates", "LICENSE*"]]]
   end
 
   def application do
