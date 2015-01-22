@@ -1,5 +1,7 @@
 Ewebmachine is a full rewrite with clean DSL and plug integration
-based on Webmachine from basho. 
+based on Webmachine from basho. This version is not backward compatible with
+the previous one that was only a thin wrapper around webmachine, use the branch
+1.0-legacy to use the old one.
 
 [![Build Status](https://travis-ci.org/awetzel/ewebmachine.svg?branch=master)](https://travis-ci.org/awetzel/ewebmachine)
 
