@@ -276,14 +276,13 @@ defmodule Ewebmachine.Builder.Resources do
   defp remove_first("*"<>e), do: e
   defp remove_first(e), do: e
 
-  defp route_as_mod("/"), do: Root
   defp route_as_mod(route), do:
-    (route |> String.split("/") |> Enum.map(& &1 |> remove_first |> String.capitalize) |> Enum.join("."))
+    (route |> String.split("/") |> Enum.map(& &1 |> remove_first |> String.capitalize) |> Enum.join)
   
   @doc ~S"""
   Create a webmachine handler plug and use it on `:resource_match` when path matches 
 
-  - the route will be the matching spec (see Plug.Router.matc, string spec only)
+  - the route will be the matching spec (see Plug.Router.match, string spec only)
   - do_block will be called on match (so matching bindings will be
     available) and should return the initial state
   - after_block will be the webmachine handler plug module body
@@ -302,7 +301,7 @@ defmodule Ewebmachine.Builder.Resources do
     
   """
   defmacro resource(route,do: init_block, after: body) do
-    wm_module = Module.concat(__CALLER__.module,route_as_mod(route))
+    wm_module = Module.concat(__CALLER__.module,"EWM"<>route_as_mod(route))
     old_wm_routes = Module.get_attribute(__CALLER__.module, :wm_routes) || []
     Module.put_attribute __CALLER__.module, :wm_routes, [{route,wm_module,init_block}|old_wm_routes]
     quote do
