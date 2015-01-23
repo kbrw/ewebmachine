@@ -38,10 +38,12 @@ defmodule Ewebmachine.Core.DSL do
     end
     {reply,var!(conn),var!(user_state)} = case reply do
       {:halt,code}-> #if halt, store current conn and fake reply
-        myconn = Conn.put_private(myconn,:machine_halt_conn,myconn)
-        {reply,_,_} = if !Module.defines?(Ewebmachine,{unquote(fun),2}), do: {"",[],[]}, #body producing fun
-                        else: apply(Ewebmachine,unquote(fun),[myconn,myuser_state])
-        {reply,myconn,myuser_state}
+        {reply,_,_} = if !:erlang.function_exported(Ewebmachine.Handlers,unquote(fun),2), do: {"",[],[]}, #body producing fun
+                        else: apply(Ewebmachine.Handlers,unquote(fun),[myconn,myuser_state])
+        haltconn = myconn |> Plug.Conn.put_status(code) |> Ewebmachine.Log.debug_enddecision
+        if !haltconn.resp_body, do: haltconn = %{haltconn|resp_body: ""}
+        haltconn = %{haltconn|state: :set}
+        {reply,Plug.Conn.put_private(myconn,:machine_halt_conn,haltconn),myuser_state}
       _ ->{reply,myconn,myuser_state}
     end
     reply

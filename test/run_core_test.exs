@@ -214,4 +214,16 @@ defmodule EwebmachineTest do
     conn = app.call(conn(:get,"/notcached",nil,headers: [{"if-none-match","toto"}]), [])
     assert conn.status == 200
   end
+
+  test "halt test" do
+    app = resources do
+      resource "/error" do %{} after 
+        content_types_provided do: {:halt,407}
+        defh to_html, do: "toto"
+      end
+    end
+    conn = app.call(conn(:get,"/error"), [])
+    assert conn.status == 407
+    assert conn.resp_body == ""
+  end
 end
