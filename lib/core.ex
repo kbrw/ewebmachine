@@ -268,6 +268,7 @@ defmodule Ewebmachine.Core do
   ## "Redirect?"
   decision v3n11 do
     if resource_call(:post_is_create) do
+      h(accept_helper)
       new_path = resource_call(:create_path)
       if is_nil(new_path), do: raise(Exception, "post_is_create w/o create_path")
       if !is_binary(new_path), do: raise(Exception, "create_path not a string (#{inspect new_path})")
@@ -276,7 +277,6 @@ defmodule Ewebmachine.Core do
       new_path = if !match?("/"<>_,new_path), do: "/#{h(path)}/#{new_path}", else: new_path
       if !h(get_resp_header("Location")), do:
         h(set_resp_header("Location",base_uri<>new_path))
-      h(accept_helper)
     else 
       true = resource_call(:process_post)
       h(encode_body_if_set)
