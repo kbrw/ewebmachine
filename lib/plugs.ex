@@ -20,8 +20,11 @@ defmodule Ewebmachine.Plug.Run do
     set these parameters in order to use this Plug.
   """
   def init(_opts), do: []
-  def call(conn,_opts), do:
-    Ewebmachine.Core.v3(conn,conn.private[:machine_init])
+  def call(conn,_opts) do
+    if (init=conn.private[:machine_init]) do
+      Ewebmachine.Core.v3(conn,init)
+    else conn end
+  end
 end
 
 defmodule Ewebmachine.Plug.Send do
