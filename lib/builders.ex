@@ -219,13 +219,33 @@ defmodule Ewebmachine.Builder.Resources do
     end
   end
   ```
+
+  ## Default plugs
+
+  As you often want to simply match resources, run the webmachine
+  automate and send the response without any customization, you can
+  use the option `default_plugs` :
+
+      use Ewebmachine.Builder.Resources, default_plugs: true
+
+  is equivalent to
+  
+      use Ewebmachine.Builder
+      plug :resource_match
+      plug Ewebmachine.Plug.Run
+      plug Ewebmachine.Plug.Send
   """
-  defmacro __using__(_) do
+  defmacro __using__(opts) do
     quote location: :keep do
       use Plug.Router
       import Plug.Router, only: []
       import Ewebmachine.Builder.Resources
       @before_compile Ewebmachine.Builder.Resources
+      if unquote(opts[:default_plugs]) do
+        plug :resource_match
+        plug Ewebmachine.Plug.Run
+        plug Ewebmachine.Plug.Send
+      end
 
       defp resource_match(conn, _opts) do
         conn |> match(nil) |> dispatch(nil)

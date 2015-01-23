@@ -39,6 +39,18 @@ defmodule EwebmachineTest do
     assert conn.resp_body == "Hello World"
     assert conn.state == :sent
   end
+
+  test "default plugs" do
+    defmodule SimpleResources do
+      use Ewebmachine.Builder.Resources, default_plugs: true
+      resource "/ok" do [] after defh(to_html, do: "toto") end
+    end
+    conn = SimpleResources.call(conn(:get, "/ok"), [])
+    assert conn.status == 200
+    assert Enum.into(conn.resp_headers,%{})["content-type"] == "text/html"
+    assert conn.resp_body == "toto"
+    assert conn.state == :sent
+  end
   
   test "Simple resource builder with XML and path match param" do
     app = resources do
