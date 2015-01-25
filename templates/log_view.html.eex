@@ -2,29 +2,29 @@
 <html>
 <head>
     <title>Webmachine Trace <%= logconn.private.machine_log %></title>
-    <link rel="stylesheet" type="text/css" href="/wm_debug/static/wmtrace.css">
-    <link rel="stylesheet" type="text/css" href="/wm_debug/static/highlight_styles/default.css">
+    <link rel="stylesheet" type="text/css" href="../../wm_debug/static/wmtrace.css">
+    <link rel="stylesheet" type="text/css" href="../../wm_debug/static/highlight_styles/default.css">
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    <script src="/wm_debug/static/highlight.pack.js"></script>
-    <script src="/wm_debug/static/wmtrace.js"></script>
-    <script src="/wm_debug/static/bert.js"></script>
+    <script src="../../wm_debug/static/highlight.pack.js"></script>
+    <script src="../../wm_debug/static/wmtrace.js"></script>
+    <script src="../../wm_debug/static/bert.js"></script>
     <script>
 var obj=Bert.decode(atob("<%= logconn |> to_draw |> :erlang.term_to_binary |> Base.encode64 %>"))
 var request = obj.request
 var response = obj.response
 var trace = obj.trace
 <%= if conn.params["reload"] do %>
-;(new EventSource("/wm_debug/events")).addEventListener("new_query", function(ev){
-  window.location = "http://"+window.location.host+"/wm_debug/log/"+ev.data+"?reload=true"
+;(new EventSource("../../wm_debug/events")).addEventListener("new_query", function(ev){
+  window.location = "http://"+window.location.host+window.location.pathname.split("wm_debug")[0]+"wm_debug/log/"+ev.data+"?reload=true"
 })
 <% end %>
     </script>
 </head>
 <body>
     <%= if conn.params["reload"] do %>
-        <a href="<%= "#{Plug.Conn.full_path(conn)}" %>">Stop redirect on new query</a>
+        <a href="?">Stop redirect on new query</a>
     <% else %>
-        <a href="<%= "#{Plug.Conn.full_path(conn)}?reload=true" %>">Auto redirect on new query</a>
+        <a href="?reload=true">Auto redirect on new query</a>
     <% end %>
     <div id="zoompanel">
         <button id="zoomout">zoom out</button>

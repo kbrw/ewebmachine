@@ -706,5 +706,5 @@ window.onload = function() {
         alert('Failed to load background image.');
     };
 
-    bg.src = '/wm_debug/static/http-headers-status-v3.png';
+    bg.src = '../../wm_debug/static/http-headers-status-v3.png';
 };
