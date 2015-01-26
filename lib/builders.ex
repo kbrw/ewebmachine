@@ -220,19 +220,40 @@ defmodule Ewebmachine.Builder.Resources do
   end
   ```
 
-  ## Default plugs
+  ## Common Plugs macro helper
 
-  As you often want to simply match resources, run the webmachine
-  automate and send the response without any customization, you can
-  use the option `default_plugs` :
+  As the most common use case is to match resources, run the webmachine
+  automate, then set a 404 if no resource match, then handle error code, then
+  send the response, the `resources_plugs/1` macro allows you to do that.
 
-      use Ewebmachine.Builder.Resources, default_plugs: true
+  For example, if you want to convert all HTTP errors as Exceptions, and
+  consider that all path must be handled and so any non matching path should
+  return a 404 :
+
+      resources_plugs error_as_exception: true, nomatch_404: true
 
   is equivalent to
   
-      use Ewebmachine.Builder
       plug :resource_match
       plug Ewebmachine.Plug.Run
+      plug :wm_notset_404
+      plug Ewebmachine.Plug.ErrorAsException
+      plug Ewebmachine.Plug.Send
+
+      defp wm_notset_404(%{state: :unset}=conn,_), do: resp(conn,404,"")
+      defp wm_notset_404(conn,_), do: conn
+
+  Another example, following plugs must handle non matching paths and errors
+  should be converted into `GET /error/:status` that must be handled by
+  following plugs :
+
+      resources_plugs error_forwarding: "/error/:status"
+
+  is equivalent to
+
+      plug :resource_match
+      plug Ewebmachine.Plug.Run
+      plug Ewebmachine.Plug.ErrorAsForward, forward_pattern: "/error/:status"
       plug Ewebmachine.Plug.Send
   """
   defmacro __using__(opts) do
