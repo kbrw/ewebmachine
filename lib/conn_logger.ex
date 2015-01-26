@@ -2,26 +2,36 @@ defmodule Ewebmachine.App do
   @moduledoc false 
   use Application
   import Supervisor.Spec
-  def start(_,_), do:
+  def start(_,_) do
     Supervisor.start_link([
-      supervisor(Ewebmachine.Log,[]),
+      worker(Ewebmachine.Log,[]),
       worker(GenEvent,[[name: Ewebmachine.Events]])
     ], strategy: :one_for_one)
+  end
 end
 
 defmodule Ewebmachine.Log do
   alias Plug.Conn
+  use GenServer
   @moduledoc false
 
+  def init([]), do:
+    (:ets.new(:logs, [:ordered_set, :named_table]); {:ok,[]})
+  def handle_cast(conn,_), do:
+    (:ets.insert(:logs,{conn.private[:machine_log],conn}); {:noreply,[]})
+
   # Public API, self describing
-  def start_link, do:
-    Agent.start_link(fn->[] end, name: __MODULE__)
-  def put(conn), do:
-    Agent.update(__MODULE__,fn l->[conn|l] end)
-  def list, do:
-    Agent.get(__MODULE__,& &1)
-  def get(id), do:
-    Agent.get(__MODULE__,fn l->Enum.find(l,&(&1.private[:machine_log]==id)) end)
+  def start_link, do: 
+    GenServer.start_link(__MODULE__,[], name: __MODULE__)
+  def put(conn), do: 
+    GenServer.cast(__MODULE__,conn)
+  def list do # fold only needed file for log listing for perfs
+    :ets.foldl(fn {_,%{method: m, path_info: pi, private: %{machine_log: l, machine_init_at: i}}},acc-> 
+       [%Conn{method: m,path_info: pi, private: %{machine_log: l,machine_init_at: i}}|acc]
+    end,[],:logs)
+  end
+  def get(id), do: 
+    (case :ets.lookup(:logs,id) do [{_,conn}]->conn; _->nil end)
   def id, do:
     (make_ref |> :erlang.term_to_binary |> Base.url_encode64)
 
