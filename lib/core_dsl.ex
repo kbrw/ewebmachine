@@ -12,8 +12,6 @@ defmodule Ewebmachine.Core.DSL do
   ##       # here : the right module handler in found in the conn
   ##       # then conn and user_state are rebinded according to its return
   ##       d(otherdecision(arg3)) 
-  ##       # if conn is halted, then return it, else call otherdecision(conn,user_state,arg3)
-  ##       h(anhelper) call anhelper(conn,user_state), same as d() without the halt logic
   ##     end
   ##     helper myhelper(arg2) do :toto end #same as decision myhelper(arg2)
   @moduledoc false
@@ -32,19 +30,15 @@ defmodule Ewebmachine.Core.DSL do
   defmacro resource_call(fun) do quote do
     handler = var!(conn).private[:resource_handlers][unquote(fun)] || Ewebmachine.Handlers
     args = [var!(conn),var!(user_state)]
-    {reply, myconn, myuser_state} = term = apply(handler,unquote(fun),args)
-    if handler !== Ewebmachine.Handlers do 
-      myconn = Ewebmachine.Log.debug_call(myconn,handler,unquote(fun),args,term)
-    end
-    {reply,var!(conn),var!(user_state)} = case reply do
-      {:halt,code}-> #if halt, store current conn and fake reply
-        {reply,_,_} = if !:erlang.function_exported(Ewebmachine.Handlers,unquote(fun),2), do: {"",[],[]}, #body producing fun
-                        else: apply(Ewebmachine.Handlers,unquote(fun),[myconn,myuser_state])
-        haltconn = myconn |> Plug.Conn.put_status(code) |> Ewebmachine.Log.debug_enddecision
+    {reply, var!(conn), var!(user_state)} = term = apply(handler,unquote(fun),args)
+    var!(conn) = Ewebmachine.Log.debug_call(var!(conn),handler,unquote(fun),args,term)
+    case reply do
+      {:halt,code}->
+        haltconn = var!(conn) |> Plug.Conn.put_status(code) |> Ewebmachine.Log.debug_enddecision
         if !haltconn.resp_body, do: haltconn = %{haltconn|resp_body: ""}
         haltconn = %{haltconn|state: :set}
-        {reply,Plug.Conn.put_private(myconn,:machine_halt_conn,haltconn),myuser_state}
-      _ ->{reply,myconn,myuser_state}
+        throw {:halt,haltconn}
+      _ ->:ok
     end
     reply
   end end
@@ -72,7 +66,10 @@ defmodule Ewebmachine.Core.DSL do
     end 
   end
 
-  defmacro h(sig) do
+  defmacro d(sig) when is_integer(sig) do 
+    quote do d(respond(unquote(sig))) end
+  end
+  defmacro d(sig) do
     {name,params,_guard} = sig_to_sigwhen(sig)
     params = (quote do: [var!(conn),var!(user_state)]) ++ params
     quote do
@@ -80,18 +77,6 @@ defmodule Ewebmachine.Core.DSL do
       reply
     end
   end
-
-  defmacro d(sig) when is_integer(sig) do 
-    quote do d(respond(unquote(sig))) end
-  end
-  defmacro d(sig) do quote do
-    case var!(conn) do
-      %{private: %{machine_halt_conn: nil}}->var!(conn)
-      %{private: %{machine_halt_conn: halt_conn}}-> var!(conn) = halt_conn
-      %{halted: true}->var!(conn)
-      _ -> h(unquote(sig)) ; var!(conn)
-    end
-  end end
 end
 
 defmodule Ewebmachine.Core.API do
