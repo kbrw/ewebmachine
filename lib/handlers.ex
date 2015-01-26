@@ -444,6 +444,13 @@ defmodule Ewebmachine.Handlers do
     {:pang,conn,state}
 
   @doc """
+  Last handler, always called. Response is ignored except if it is a `halt`.
+  """
+  @spec finish_request(conn,state) :: {any | halt, conn, state}
+  def finish_request(conn,state), do:
+    {false,conn,state}
+
+  @doc """
   Example body-producing function, function atom name must be referenced in `content_types_provided/2`.
   
   - If the result is an `Enumerable` of `iodata`, then the HTTP response will be

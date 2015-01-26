@@ -34,10 +34,8 @@ defmodule Ewebmachine.Core.DSL do
     var!(conn) = Ewebmachine.Log.debug_call(var!(conn),handler,unquote(fun),args,term)
     case reply do
       {:halt,code}->
-        haltconn = var!(conn) |> Plug.Conn.put_status(code) |> Ewebmachine.Log.debug_enddecision
-        if !haltconn.resp_body, do: haltconn = %{haltconn|resp_body: ""}
-        haltconn = %{haltconn|state: :set}
-        throw {:halt,haltconn}
+        d(set_response_code(code))
+        throw {:halt,var!(conn)}
       _ ->:ok
     end
     reply
@@ -101,7 +99,6 @@ defmodule Ewebmachine.Core.API do
 
   helper set_response_code(code) do
     conn = conn # halt machine when set response code, on respond
-      |> Conn.put_private(:machine_halt_conn,nil)
       |> Conn.put_status(code)
       |> Ewebmachine.Log.debug_enddecision
     if !conn.resp_body, do: conn = %{conn|resp_body: ""}
@@ -284,4 +281,49 @@ defmodule Ewebmachine.Core.Utils do
     |> Enum.sort
     |> Enum.reverse
   end
+
+  @doc "get HTTP status label from HTTP code"
+  @spec http_label(code :: integer) :: String.t
+  def http_label(100), do: "Continue"
+  def http_label(101), do: "Switching Protocol"
+  def http_label(200), do: "OK"
+  def http_label(201), do: "Created"
+  def http_label(202), do: "Accepted"
+  def http_label(203), do: "Non-Authoritative Information"
+  def http_label(204), do: "No Content"
+  def http_label(205), do: "Reset Content"
+  def http_label(206), do: "Partial Content"
+  def http_label(300), do: "Multiple Choice"
+  def http_label(301), do: "Moved Permanently"
+  def http_label(302), do: "Found"
+  def http_label(303), do: "See Other"
+  def http_label(304), do: "Not Modified"
+  def http_label(305), do: "Use Proxy"
+  def http_label(306), do: "unused"
+  def http_label(307), do: "Temporary Redirect"
+  def http_label(308), do: "Permanent Redirect"
+  def http_label(400), do: "Bad Request"
+  def http_label(401), do: "Unauthorized"
+  def http_label(402), do: "Payment Required"
+  def http_label(403), do: "Forbidden"
+  def http_label(404), do: "Not Found"
+  def http_label(405), do: "Method Not Allowed"
+  def http_label(406), do: "Not Acceptable"
+  def http_label(407), do: "Proxy Authentication Required"
+  def http_label(408), do: "Request Timeout"
+  def http_label(409), do: "Conflict"
+  def http_label(410), do: "Gone"
+  def http_label(411), do: "Length Required"
+  def http_label(412), do: "Precondition Failed"
+  def http_label(413), do: "Request Entity Too Large"
+  def http_label(414), do: "Request-URI Too Long"
+  def http_label(415), do: "Unsupported Media Type"
+  def http_label(416), do: "Requested Range Not Satisfiable"
+  def http_label(417), do: "Expectation Failed"
+  def http_label(500), do: "Internal Server Error"
+  def http_label(501), do: "Not Implemented"
+  def http_label(502), do: "Bad Gateway"
+  def http_label(503), do: "Service Unavailable"
+  def http_label(504), do: "Gateway Timeout"
+  def http_label(505), do: "HTTP Version Not Supported"
 end

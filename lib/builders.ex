@@ -92,7 +92,7 @@ defmodule Ewebmachine.Builder.Handlers do
     :base_uri,:uri_too_long,:known_content_type,:valid_content_headers,:valid_entity_length,:options,:allowed_methods,
     :delete_resource,:delete_completed,:post_is_create,:create_path,:process_post,:content_types_provided,
     :content_types_accepted,:charsets_provided,:encodings_provided,:variances,:is_conflict,:multiple_choices,
-    :previously_existed,:moved_permanently,:moved_temporarily,:last_modified,:expires,:generate_etag, :ping
+    :previously_existed,:moved_permanently,:moved_temporarily,:last_modified,:expires,:generate_etag, :ping, :finish_request
   ]
   defp sig_to_sigwhen({:when,_,[{name,_,params},guard]}), do: {name,params,guard}
   defp sig_to_sigwhen({name,_,params}) when is_list(params), do: {name,params,true}
@@ -310,6 +310,26 @@ defmodule Ewebmachine.Builder.Resources do
         unquote(body)
         plug :add_handlers
       end
+    end
+  end
+
+  alias Ewebmachine.Plug.ErrorAsException
+  alias Ewebmachine.Plug.ErrorAsForward
+  defmacro resources_plugs(opts \\ []) do
+    {errorplug,errorplug_params} = cond do
+      opts[:error_as_exception]->{ErrorAsException,[]}
+      (forward_pattern=opts[:error_forwarding])->{ErrorAsForward,[forward_pattern: forward_pattern]}
+      true -> {false,[]}
+    end
+    quote do
+      plug :resource_match
+      plug Ewebmachine.Plug.Run
+      if unquote(opts[:nomatch_404]), do: plug :wm_notset_404
+      if unquote(errorplug), do: plug(unquote(errorplug),unquote(errorplug_params))
+      plug Ewebmachine.Plug.Send
+
+      defp wm_notset_404(%{state: :unset}=conn,_), do: resp(conn,404,"")
+      defp wm_notset_404(conn,_), do: conn
     end
   end
 end

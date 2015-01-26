@@ -18,11 +18,18 @@ defmodule Ewebmachine.Plug.Run do
 
     `Ewebmachine.Builder.Handlers` `:add_handler` plug allows you to
     set these parameters in order to use this Plug.
+
+    A successfull run will reset the resource handlers and initial state.
   """
   def init(_opts), do: []
   def call(conn,_opts) do
     if (init=conn.private[:machine_init]) do
-      Ewebmachine.Core.v3(conn,init)
+      conn = Ewebmachine.Core.v3(conn,init)
+      if (log=conn.private[:machine_log]) do
+        Ewebmachine.Log.put(conn)
+        GenEvent.notify(Ewebmachine.Events,log)
+      end
+      %{conn|private: Dict.drop(conn.private,[:machine_init,:resource_handlers,:machine_decisions,:machine_calls,:machine_log,:machine_init_at])}
     else conn end
   end
 end
@@ -35,7 +42,7 @@ defmodule Ewebmachine.Plug.Send do
   import Plug.Conn
   def init(_opts), do: []
   def call(conn,_opts) do
-    if conn.private[:machine_init] do
+    if conn.state == :set do
       if (stream=conn.private[:machine_body_stream]) do
         conn = send_chunked(conn,conn.status)
         Enum.each(stream,&chunk(conn,&1))
@@ -48,6 +55,7 @@ defmodule Ewebmachine.Plug.Send do
     end
   end
 end
+
 
 defmodule Ewebmachine.Plug.Debug do
   @moduledoc ~S"""
@@ -112,15 +120,7 @@ defmodule Ewebmachine.Plug.Debug do
   end
 
   match _ do
-    conn 
-    |> put_private(:machine_debug,true)
-    |> register_before_send(fn conn->
-        if (log=conn.private[:machine_log]) do
-          Ewebmachine.Log.put(conn)
-          GenEvent.notify(Ewebmachine.Events,log)
-        end
-        conn
-    end)
+    put_private(conn,:machine_debug,true)
   end
 
   defmodule EventHandler do
@@ -141,7 +141,7 @@ defmodule Ewebmachine.Plug.Debug do
     """,
     response: %{
       http: """
-      HTTP/1.1 #{conn.status} #{http_label(conn.status)} 
+      HTTP/1.1 #{conn.status} #{Ewebmachine.Core.Utils.http_label(conn.status)} 
       #{html_escape format_headers(conn.resp_headers)}
       #{html_escape (conn.resp_body || "some chunked body")}
       """,
@@ -191,47 +191,34 @@ defmodule Ewebmachine.Plug.Debug do
   defp escape_char(?"), do: "&quot;"
   defp escape_char(?'), do: "&#39;"
   defp escape_char(c), do: c
+end
 
-  defp http_label(100), do: "Continue"
-  defp http_label(101), do: "Switching Protocol"
-  defp http_label(200), do: "OK"
-  defp http_label(201), do: "Created"
-  defp http_label(202), do: "Accepted"
-  defp http_label(203), do: "Non-Authoritative Information"
-  defp http_label(204), do: "No Content"
-  defp http_label(205), do: "Reset Content"
-  defp http_label(206), do: "Partial Content"
-  defp http_label(300), do: "Multiple Choice"
-  defp http_label(301), do: "Moved Permanently"
-  defp http_label(302), do: "Found"
-  defp http_label(303), do: "See Other"
-  defp http_label(304), do: "Not Modified"
-  defp http_label(305), do: "Use Proxy"
-  defp http_label(306), do: "unused"
-  defp http_label(307), do: "Temporary Redirect"
-  defp http_label(308), do: "Permanent Redirect"
-  defp http_label(400), do: "Bad Request"
-  defp http_label(401), do: "Unauthorized"
-  defp http_label(402), do: "Payment Required"
-  defp http_label(403), do: "Forbidden"
-  defp http_label(404), do: "Not Found"
-  defp http_label(405), do: "Method Not Allowed"
-  defp http_label(406), do: "Not Acceptable"
-  defp http_label(407), do: "Proxy Authentication Required"
-  defp http_label(408), do: "Request Timeout"
-  defp http_label(409), do: "Conflict"
-  defp http_label(410), do: "Gone"
-  defp http_label(411), do: "Length Required"
-  defp http_label(412), do: "Precondition Failed"
-  defp http_label(413), do: "Request Entity Too Large"
-  defp http_label(414), do: "Request-URI Too Long"
-  defp http_label(415), do: "Unsupported Media Type"
-  defp http_label(416), do: "Requested Range Not Satisfiable"
-  defp http_label(417), do: "Expectation Failed"
-  defp http_label(500), do: "Internal Server Error"
-  defp http_label(501), do: "Not Implemented"
-  defp http_label(502), do: "Bad Gateway"
-  defp http_label(503), do: "Service Unavailable"
-  defp http_label(504), do: "Gateway Timeout"
-  defp http_label(505), do: "HTTP Version Not Supported"
+defmodule Ewebmachine.Plug.ErrorAsException do
+  @moduledoc """
+  This plug checks the current response status. If it is an error, raise a plug
+  exception with the status code and the HTTP error name as the message. If
+  this response body is not void, use it as the exception message.
+  """
+  defexception [:plug_status,:message]
+  def init(_), do: []  
+  def call(%{status: code, state: :set}=conn,_) when code > 399, do: raise(__MODULE__,conn)
+  def call(conn,_), do: conn
+  def exception(%{status: code,resp_body: msg}) when byte_size(msg)>0, do:
+    %__MODULE__{plug_status: code, message: msg}
+  def exception(%{status: code}), do:
+    %__MODULE__{plug_status: code, message: Ewebmachine.Core.Utils.http_label(code)}
+end
+
+defmodule Ewebmachine.Plug.ErrorAsForward do
+  @moduledoc """
+  This plug take an argument `forward_pattern` (default to `"/error/:status"`),
+  and, when the current response status is an error, simply forward to a `GET`
+  to the path defined by the pattern and this status.
+  """
+  def init(opts), do: (opts[:forward_pattern] || "/error/:status")
+  def call(%{status: code, state: :set}=conn,pattern) when code > 399 do
+    path = pattern |> String.slice(1..-1) |> String.replace(":status",to_string(code)) |> String.split("/")
+    %{conn| path_info: path, method: "GET", state: :unset}
+  end
+  def call(conn,_), do: conn
 end
