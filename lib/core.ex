@@ -278,7 +278,7 @@ defmodule Ewebmachine.Core do
       if !is_binary(new_path), do: raise(Exception, "create_path not a string (#{inspect new_path})")
       base_uri = resource_call(:base_uri)
       base_uri = if String.last(base_uri)=="/", do: String.slice(base_uri,0..-2), else: base_uri
-      new_path = if !match?("/"<>_,new_path), do: "/#{d(path)}/#{new_path}", else: new_path
+      new_path = if !match?("/"<>_,new_path), do: "#{d(path)}/#{new_path}", else: new_path
       if !d(get_resp_header("Location")), do:
         d(set_resp_header("Location",base_uri<>new_path))
     else 

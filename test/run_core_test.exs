@@ -177,11 +177,20 @@ defmodule EwebmachineTest do
         defh from_text, do:
           {true,put_private(conn,:body_post,read_body(conn)),state}
       end
+      resource "/orders2" do %{} after 
+        allowed_methods do: ["POST"]
+        post_is_create do: true
+        create_path do: "titus"
+        content_types_accepted do: ["text/plain": :from_text]
+        defh from_text, do: true
+      end
     end
     conn = app.call(conn(:post,"/orders","titus",headers: [{"content-type","text/plain"}]), [])
     assert get_resp_header(conn,"Location") == ["http://www.example.com/titus"]
     assert conn.status == 201
     assert {:ok,"titus",_} = conn.private.body_post
+    conn = app.call(conn(:post,"/orders2","titus",headers: [{"content-type","text/plain"}]), [])
+    assert get_resp_header(conn,"Location") == ["http://www.example.com/orders2/titus"]
   end
   
   test "POST process post" do

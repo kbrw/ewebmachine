@@ -92,7 +92,7 @@ defmodule Ewebmachine.Core.API do
     first_or_nil(Conn.get_resp_header(conn,name))
 
   helper path, do: 
-    conn.path_info
+    Conn.full_path(conn)
 
   helper get_header_val(name), do: 
     first_or_nil(Conn.get_req_header(conn,name))
