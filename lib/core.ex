@@ -439,6 +439,7 @@ defmodule Ewebmachine.Core do
         d(set_resp_header("Expires",rfc1123_date(exp)))
     end
     d(set_response_code(code))
+    resource_call(:finish_request)
   end
 end
 
