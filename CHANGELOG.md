@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.0.6
+
+* Bug fixes
+  * Debug call log size were O(n^2), make it O(n) removing `conn.private` from
+    the log
+
 ## v2.0.5
 
 * Enhancements

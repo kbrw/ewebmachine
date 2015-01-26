@@ -45,10 +45,12 @@ defmodule Ewebmachine.Log do
       |> Conn.put_private(:machine_calls,[])
     else conn end
   end
-  def debug_call(conn,module,function,in_args,out_term) do
+  def debug_call(conn,module,function,[in_conn,in_state],{resp,out_conn,out_state}) do
     if conn.private[:machine_log] !== nil and module !== Ewebmachine.Handlers do
       Conn.put_private(conn,:machine_calls,
-        [{module,function,in_args,out_term}|conn.private.machine_calls])
+        [{module,function,[%{in_conn|private: %{}},in_state],
+                           {resp,%{out_conn|private: %{}},out_state}}
+            |conn.private.machine_calls])
     else conn end
   end
   def debug_enddecision(conn) do

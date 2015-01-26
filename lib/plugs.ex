@@ -157,14 +157,14 @@ defmodule Ewebmachine.Plug.Debug do
             input: """
             state = #{html_escape inspect(in_state, pretty: true)}
 
-            conn = #{html_escape inspect(%{in_conn|private: %{}}, pretty: true)}
+            conn = #{html_escape inspect(in_conn, pretty: true)}
             """,
             output: """
             response = #{html_escape inspect(resp, pretty: true)}
 
             state = #{html_escape inspect(out_state, pretty: true)}
 
-            conn = #{html_escape inspect(%{out_conn|private: %{}}, pretty: true)}
+            conn = #{html_escape inspect(out_conn, pretty: true)}
             """
           }
         end)
