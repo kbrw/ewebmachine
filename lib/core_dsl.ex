@@ -152,7 +152,7 @@ defmodule Ewebmachine.Core.Utils do
   @doc "convert any content type representation (see spec) into a `norm_content_type`"
   @spec normalize_mtype({type::String.t,params::map} | type::String.t | norm_content_type) :: norm_content_type
   def normalize_mtype({type,params}) do
-    case String.split(type) do
+    case String.split(type,"/") do
       [type,subtype]->{type,subtype,params}
       _->{"application","octet-stream",%{}}
     end
@@ -163,6 +163,14 @@ defmodule Ewebmachine.Core.Utils do
       {:ok,type,subtype,params}->{type,subtype,params}
       :error-> {"application","octet-stream",%{}}
     end
+  end
+
+  @doc "Match normalized media types accepting a partial match (wildcard or
+  incomplete params)"
+  def fuzzy_mt_match({h_type,h_subtype,h_params},{a_type,a_subtype,a_params}) do
+    (a_type == h_type or a_type == "*" ) and 
+      (a_subtype == h_subtype or a_subtype=="*") and 
+      Enum.all?(a_params, fn {k,v}-> h_params[k] == v end)
   end
 
   @doc "format a `norm_content_type` into an HTTP content type header"

@@ -39,7 +39,7 @@ defmodule EwebmachineTest do
     assert conn.resp_body == "Hello World"
     assert conn.state == :sent
   end
-
+  
   test "default plugs" do
     defmodule SimpleResources do
       use Ewebmachine.Builder.Resources, default_plugs: true
@@ -150,7 +150,7 @@ defmodule EwebmachineTest do
     assert conn.status == 401
     assert get_resp_header(conn,"WWW-Authenticate") == ["myrealm"]
   end
-
+  
   test "Encoding base64" do
     app = resources do
       resource "/" do %{} after 
@@ -166,7 +166,7 @@ defmodule EwebmachineTest do
     assert get_resp_header(conn,"Content-Encoding") == []
     assert conn.resp_body == "hello"
   end
-
+  
   test "POST create path" do
     app = resources do
       resource "/orders" do %{} after 
@@ -183,7 +183,7 @@ defmodule EwebmachineTest do
     assert conn.status == 201
     assert {:ok,"titus",_} = conn.private.body_post
   end
-
+  
   test "POST process post" do
     app = resources do
       resource "/orders" do %{} after 
@@ -196,7 +196,7 @@ defmodule EwebmachineTest do
     assert conn.status == 204
     assert "yes" = conn.private[:body_post]
   end
-
+  
   test "Cache if modified" do
     app = resources do
       resource "/notcached" do %{} after 
@@ -211,7 +211,7 @@ defmodule EwebmachineTest do
     conn = app.call(conn(:get,"/notcached",nil,headers: [{"if-modified-since","Sat, 31 Dec 2012 19:43:31 GMT"}]), [])
     assert conn.status == 200
   end
-
+  
   test "Cache etag" do
     app = resources do
       resource "/notcached" do %{} after 
@@ -226,7 +226,7 @@ defmodule EwebmachineTest do
     conn = app.call(conn(:get,"/notcached",nil,headers: [{"if-none-match","toto"}]), [])
     assert conn.status == 200
   end
-
+  
   test "halt test" do
     app = resources do
       resource "/error" do %{} after 
@@ -237,5 +237,20 @@ defmodule EwebmachineTest do
     conn = app.call(conn(:get,"/error"), [])
     assert conn.status == 407
     assert conn.resp_body == ""
+  end
+
+  test "fuzzy acceptance" do
+    app = resources do
+      resource "/" do %{} after 
+        allowed_methods do: ["PUT"]
+        content_types_accepted do: %{"application/*"=> :from_app, {"text/*",%{"pretty"=>"true"}}=> :from_pretty}
+        defh from_app, do: {:halt,601}
+        defh from_pretty, do: {:halt,602}
+      end
+    end
+    headers = [{"content-type","application/json; charset=utf8"}]
+    assert app.call(conn(:put,"/","h",[headers: headers]),[]).status == 601
+    headers = [{"content-type","text/html; pretty=true; charset=utf8"}]
+    assert app.call(conn(:put,"/","h",[headers: headers]),[]).status == 602
   end
 end

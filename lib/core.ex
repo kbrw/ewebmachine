@@ -363,10 +363,10 @@ defmodule Ewebmachine.Core do
 
   helper accept_helper do
     ct = d(get_header_val("content-type")) || "application/octet-stream"
-    {_,_,mparams}=mt = normalize_mtype(ct)
-    d(set_metadata(:mediaparams,mparams))
+    {_,_,h_params}=ct=normalize_mtype(ct)
+    d(set_metadata(:mediaparams,h_params))
     ct_accepted = resource_call(:content_types_accepted)
-    mtfun = Enum.find_value(ct_accepted, fn {t,f}-> (normalize_mtype(t) == mt) && f end)
+    mtfun = Enum.find_value(ct_accepted, fn {accept,f}->fuzzy_mt_match(ct,normalize_mtype(accept)) && f end)
     if mtfun do 
       resource_call(mtfun)
       d(encode_body_if_set)
