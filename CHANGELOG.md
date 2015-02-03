@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.0.7
+
+* Bug fixes
+  * All headers must be lower case to respect Plug.conn convention, updated tests
+
 ## v2.0.6
 
 * Bug fixes

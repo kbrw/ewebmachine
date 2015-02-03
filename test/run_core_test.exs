@@ -148,7 +148,7 @@ defmodule EwebmachineTest do
     assert app.call(conn(:get, "/ok"), []).status == 200
     conn = app.call(conn(:get, "/notok"), [])
     assert conn.status == 401
-    assert get_resp_header(conn,"WWW-Authenticate") == ["myrealm"]
+    assert get_resp_header(conn,"www-authenticate") == ["myrealm"]
   end
   
   test "Encoding base64" do
@@ -159,11 +159,11 @@ defmodule EwebmachineTest do
       end
     end
     conn = app.call(conn(:get,"/",[],headers: [{"accept-encoding","base64"}]), [])
-    assert get_resp_header(conn,"Content-Encoding") == ["base64"]
+    assert get_resp_header(conn,"content-encoding") == ["base64"]
     assert conn.resp_body == "aGVsbG8="
     conn = app.call(conn(:get,"/",[],headers: [{"accept-encoding","toto"}]), [])
     assert conn.status == 200
-    assert get_resp_header(conn,"Content-Encoding") == []
+    assert get_resp_header(conn,"content-encoding") == []
     assert conn.resp_body == "hello"
   end
   
@@ -186,11 +186,11 @@ defmodule EwebmachineTest do
       end
     end
     conn = app.call(conn(:post,"/orders","titus",headers: [{"content-type","text/plain"}]), [])
-    assert get_resp_header(conn,"Location") == ["http://www.example.com/titus"]
+    assert get_resp_header(conn,"location") == ["http://www.example.com/titus"]
     assert conn.status == 201
     assert {:ok,"titus",_} = conn.private.body_post
     conn = app.call(conn(:post,"/orders2","titus",headers: [{"content-type","text/plain"}]), [])
-    assert get_resp_header(conn,"Location") == ["http://www.example.com/orders2/titus"]
+    assert get_resp_header(conn,"location") == ["http://www.example.com/orders2/titus"]
   end
   
   test "POST process post" do

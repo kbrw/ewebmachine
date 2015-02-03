@@ -33,7 +33,7 @@ defmodule Ewebmachine.Core do
     if d(method) in methods do
       d(v3b9)
     else
-      d(set_resp_headers(%{"Allow"=>Enum.join(methods,",")}))
+      d(set_resp_headers(%{"allow"=>Enum.join(methods,",")}))
       d(405)
     end
   end
@@ -63,7 +63,7 @@ defmodule Ewebmachine.Core do
     case resource_call(:is_authorized) do
       true -> d(v3b7)
       auth_head ->
-        d(set_resp_header("WWW-Authenticate", auth_head))
+        d(set_resp_header("www-authenticate", auth_head))
         d(401)
     end
   end
@@ -146,7 +146,7 @@ defmodule Ewebmachine.Core do
   decision v3g7 do
     ## his is the first place after all conneg, so set Vary here
     vars = d(variances)
-    if length(vars)>0, do: d(set_resp_header("Vary",Enum.join(vars,",")))
+    if length(vars)>0, do: d(set_resp_header("vary",Enum.join(vars,",")))
     if(resource_call(:resource_exists), do: d(v3g8), else: d(v3h7))
   end
   ## "If-Match exists?"
@@ -181,7 +181,7 @@ defmodule Ewebmachine.Core do
   ## "Moved permanently? (apply PUT to different URI)"
   decision v3i4 do
     case resource_call(:moved_permanently) do
-      {true, moved_uri} -> d(set_resp_header("Location", moved_uri)); d(301)
+      {true, moved_uri} -> d(set_resp_header("location", moved_uri)); d(301)
       false -> d(v3p3)
     end
   end
@@ -200,7 +200,7 @@ defmodule Ewebmachine.Core do
   ## "Moved permanently?"
   decision v3k5 do
     case resource_call(:moved_permanently) do
-      {true, moved_uri}-> d(set_resp_header("Location",moved_uri));d(301)
+      {true, moved_uri}-> d(set_resp_header("location",moved_uri));d(301)
       false -> d(v3l5)
     end
   end
@@ -218,7 +218,7 @@ defmodule Ewebmachine.Core do
   ## "Moved temporarily?"
   decision v3l5 do
     case resource_call(:moved_temporarily) do
-      {true, moved_uri} -> d(set_resp_header("Location", moved_uri));d(307)
+      {true, moved_uri} -> d(set_resp_header("location", moved_uri));d(307)
       false -> d(v3m5)
     end
   end
@@ -279,8 +279,8 @@ defmodule Ewebmachine.Core do
       base_uri = resource_call(:base_uri)
       base_uri = if String.last(base_uri)=="/", do: String.slice(base_uri,0..-2), else: base_uri
       new_path = if !match?("/"<>_,new_path), do: "#{d(path)}/#{new_path}", else: new_path
-      if !d(get_resp_header("Location")), do:
-        d(set_resp_header("Location",base_uri<>new_path))
+      if !d(get_resp_header("location")), do:
+        d(set_resp_header("location",base_uri<>new_path))
     else 
       true = resource_call(:process_post)
       d(encode_body_if_set)
@@ -307,12 +307,12 @@ defmodule Ewebmachine.Core do
   decision v3o18 do
     final_body = if d(method) in ["GET","HEAD"] do
       if (etag=resource_call(:generate_etag)), do:
-        d(set_resp_header("ETag",quoted_string(etag)))
+        d(set_resp_header("etag",quoted_string(etag)))
       ct = d(get_metadata(:'content-type'))
       if (lm=resource_call(:last_modified)), do:
-        d(set_resp_header("Last-Modified",rfc1123_date(lm)))
+        d(set_resp_header("last-modified",rfc1123_date(lm)))
       if (exp=resource_call(:expires)), do:
-        d(set_resp_header("Expires",rfc1123_date(exp)))
+        d(set_resp_header("expires",rfc1123_date(exp)))
       ct_provided = resource_call(:content_types_provided)
       f = Enum.find_value(ct_provided,fn {t,f}->normalize_mtype(t)==ct && f end)
       body = resource_call(f)
@@ -341,7 +341,7 @@ defmodule Ewebmachine.Core do
   
   ## "New resource?  (at this point boils down to \"has location header\")"
   decision v3p11 do
-    if d(get_resp_header("Location")) do
+    if d(get_resp_header("location")) do
       d(201)
     else
       d(v3o20)
@@ -402,7 +402,7 @@ defmodule Ewebmachine.Core do
     encs = for {enc,_}<-enc_provided, do: to_string(enc)
     if(chosen_enc=choose_encoding(encs, acc_enc_hdr)) do
       if chosen_enc !== "identity", do:
-        d(set_resp_header("Content-Encoding",chosen_enc))
+        d(set_resp_header("content-encoding",chosen_enc))
       d(set_metadata(:'content-encoding',chosen_enc))
       chosen_enc
     end
@@ -422,7 +422,7 @@ defmodule Ewebmachine.Core do
 
   helper redirect_helper do
     if d(resp_redirect) do
-      if !d(get_resp_header("Location")), do:
+      if !d(get_resp_header("location")), do:
         raise(Exception, "Response had do_redirect but no Location")
       d(303)
     else 
@@ -434,9 +434,9 @@ defmodule Ewebmachine.Core do
     if code == 304 do
       d(remove_resp_header("content-type"))
       if (etag=resource_call(:generate_etag)), do:
-        d(set_resp_header("ETag", quoted_string(etag)))
+        d(set_resp_header("etag", quoted_string(etag)))
       if (exp=resource_call(:expires)), do:
-        d(set_resp_header("Expires",rfc1123_date(exp)))
+        d(set_resp_header("expires",rfc1123_date(exp)))
     end
     d(set_response_code(code))
     resource_call(:finish_request)
