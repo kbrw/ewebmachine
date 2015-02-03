@@ -4,6 +4,10 @@
 
 * Bug fixes
   * All headers must be lower case to respect Plug.conn convention, updated tests
+  * add PATCH to default known methods, currently no other support, so to use PATCH
+    - set Accept-Patch in `option` with accepted media types, 
+    - set handler for these types in `content-types-accepted`
+    - implement `resources_exists` to convert `PATCH` method to `PUT` if the resource exists
 
 ## v2.0.6
 

@@ -192,7 +192,7 @@ defmodule Ewebmachine.Handlers do
   """
   @spec known_methods(conn,state) :: {[String.t] | halt,conn,state}
   def known_methods(conn,state), do:
-    {["GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT", "OPTIONS"],conn,state}
+    {["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "TRACE", "CONNECT", "OPTIONS"],conn,state}
 
   @doc """
   This should return a key value tuple enumerable where the key is
