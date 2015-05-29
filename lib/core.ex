@@ -372,6 +372,7 @@ defmodule Ewebmachine.Core do
       d(encode_body_if_set)
     else 
       d(415)
+      throw {:halt,conn}
     end
   end
   

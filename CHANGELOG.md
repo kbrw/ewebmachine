@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.0.8
+
+* Bug fixes
+  * `accept_helper` is used in non terminal decision, so halt conn in case of 415 (else in some case, 415 became 200)
+
 ## v2.0.7
 
 * Bug fixes
