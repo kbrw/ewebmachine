@@ -135,7 +135,7 @@ defmodule Ewebmachine.Plug.Debug do
   @doc false
   def to_draw(conn), do: %{
     request: """
-    #{conn.method} #{Conn.full_path(conn)} HTTP/1.1
+    #{conn.method} #{conn.full_path} HTTP/1.1
     #{html_escape format_headers(conn.req_headers)}
     #{html_escape body_of(conn)}
     """,
