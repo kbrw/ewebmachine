@@ -40,7 +40,7 @@ defmodule Ewebmachine.Log do
     if conn.private[:machine_debug] do
       conn
       |> Conn.put_private(:machine_log,id)
-      |> Conn.put_private(:machine_init_at,:erlang.now)
+      |> Conn.put_private(:machine_init_at,:erlang.timestamp)
       |> Conn.put_private(:machine_decisions,[])
       |> Conn.put_private(:machine_calls,[])
     else conn end

@@ -1,4 +1,4 @@
-<% conn = Plug.Conn.fetch_params(conn) %>
+<% conn = Plug.Conn.fetch_query_params(conn) %>
 <html>
 <head>
     <title>Webmachine Trace <%= logconn.private.machine_log %></title>
