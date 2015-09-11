@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.0.9
+
+* Bug fixes
+  * Plug version spec and plug update to 1.0
+
 ## v2.0.8
 
 * Bug fixes

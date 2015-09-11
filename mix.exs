@@ -3,14 +3,14 @@ defmodule Ewebmachine.Mixfile do
 
   def project do
     [ app: :ewebmachine,
-      version: "2.0.8",
+      version: "2.0.9",
       docs: [
         main: "Ewebmachine",
         source_url: "https://github.com/awetzel/ewebmachine",
         source_ref: "master"
       ],
       deps: [
-        {:plug, []},
+        {:plug, "~> 1.0"},
         {:cowboy, "~> 1.0", optional: true},
         {:ex_doc, only: :dev}
       ],

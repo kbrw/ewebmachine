@@ -126,9 +126,9 @@ defmodule EwebmachineTest do
       end
     end
     headers = [{"content-type","application/json"},{"content-md5","qqsjdf"}]
-    assert app.call(conn(:put,"/","hello\n",[headers: headers]),[]).status == 400
+    assert app.call(%{conn(:put,"/","hello\n")|req_headers: headers},[]).status == 400
     headers = [{"content-type","application/json"},{"content-md5","sZRqySSS0jR8YjW00mERhA=="}]
-    assert app.call(conn(:put,"/","hello\n",[headers: headers]),[]).status == 204
+    assert app.call(%{conn(:put,"/","hello\n")|req_headers: headers},[]).status == 204
   end
   
   test "Malformed ?" do
@@ -158,10 +158,10 @@ defmodule EwebmachineTest do
         defh to_html, do: "hello"
       end
     end
-    conn = app.call(conn(:get,"/",[],headers: [{"accept-encoding","base64"}]), [])
+    conn = app.call(%{conn(:get,"/")|req_headers: [{"accept-encoding","base64"}]}, [])
     assert get_resp_header(conn,"content-encoding") == ["base64"]
     assert conn.resp_body == "aGVsbG8="
-    conn = app.call(conn(:get,"/",[],headers: [{"accept-encoding","toto"}]), [])
+    conn = app.call(%{conn(:get,"/")|req_headers: [{"accept-encoding","toto"}]}, [])
     assert conn.status == 200
     assert get_resp_header(conn,"content-encoding") == []
     assert conn.resp_body == "hello"
@@ -185,11 +185,11 @@ defmodule EwebmachineTest do
         defh from_text, do: true
       end
     end
-    conn = app.call(conn(:post,"/orders","titus",headers: [{"content-type","text/plain"}]), [])
+    conn = app.call(conn(:post,"/orders","titus") |> put_req_header("content-type", "text/plain"), [])
     assert get_resp_header(conn,"location") == ["http://www.example.com/titus"]
     assert conn.status == 201
     assert {:ok,"titus",_} = conn.private.body_post
-    conn = app.call(conn(:post,"/orders2","titus",headers: [{"content-type","text/plain"}]), [])
+    conn = app.call(conn(:post,"/orders2","titus") |> put_req_header("content-type", "text/plain"), [])
     assert get_resp_header(conn,"location") == ["http://www.example.com/orders2/titus"]
   end
   
@@ -201,7 +201,7 @@ defmodule EwebmachineTest do
           {true,put_private(conn,:body_post,"yes"),state}
       end
     end
-    conn = app.call(conn(:post,"/orders","titus",headers: [{"content-type","text/plain"}]), [])
+    conn = app.call(conn(:post,"/orders","titus") |> put_req_header("content-type", "text/plain"), [])
     assert conn.status == 204
     assert "yes" = conn.private[:body_post]
   end
@@ -215,9 +215,9 @@ defmodule EwebmachineTest do
         last_modified do: {{2012,12,31},{0,0,0}}
       end
     end
-    conn = app.call(conn(:get,"/cached",nil,headers: [{"if-modified-since","Sat, 31 Dec 2012 19:43:31 GMT"}]), [])
+    conn = app.call(%{conn(:get,"/cached")|req_headers: [{"if-modified-since","Sat, 31 Dec 2012 19:43:31 GMT"}]}, [])
     assert conn.status == 304
-    conn = app.call(conn(:get,"/notcached",nil,headers: [{"if-modified-since","Sat, 31 Dec 2012 19:43:31 GMT"}]), [])
+    conn = app.call(%{conn(:get,"/notcached")|req_headers: [{"if-modified-since","Sat, 31 Dec 2012 19:43:31 GMT"}]}, [])
     assert conn.status == 200
   end
   
@@ -230,9 +230,9 @@ defmodule EwebmachineTest do
         generate_etag do: "toto"
       end
     end
-    conn = app.call(conn(:get,"/cached",nil,headers: [{"if-none-match","toto"}]), [])
+    conn = app.call(%{conn(:get,"/cached")|req_headers: [{"if-none-match","toto"}]}, [])
     assert conn.status == 304
-    conn = app.call(conn(:get,"/notcached",nil,headers: [{"if-none-match","toto"}]), [])
+    conn = app.call(%{conn(:get,"/notcached")|req_headers: [{"if-none-match","toto"}]}, [])
     assert conn.status == 200
   end
   
@@ -258,8 +258,8 @@ defmodule EwebmachineTest do
       end
     end
     headers = [{"content-type","application/json; charset=utf8"}]
-    assert app.call(conn(:put,"/","h",[headers: headers]),[]).status == 601
+    assert app.call(%{conn(:put,"/","h")|req_headers: headers},[]).status == 601
     headers = [{"content-type","text/html; pretty=true; charset=utf8"}]
-    assert app.call(conn(:put,"/","h",[headers: headers]),[]).status == 602
+    assert app.call(%{conn(:put,"/","h")|req_headers: headers},[]).status == 602
   end
 end
