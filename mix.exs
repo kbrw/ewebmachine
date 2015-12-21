@@ -23,7 +23,7 @@ defmodule Ewebmachine.Mixfile do
       """,
       package: [links: %{"Source"=>"http://github.com/awetzel/ewebmachine",
                          "Doc"=>"http://hexdocs.pm/ewebmachine"},
-                contributors: ["Arnaud Wetzel", "Yurii Rashkovskii"],
+                maintainers: ["Arnaud Wetzel", "Yurii Rashkovskii"],
                 licenses: ["MIT"],
                 files: ["lib", "priv", "mix.exs", "README*", "templates", "LICENSE*"]]]
   end
