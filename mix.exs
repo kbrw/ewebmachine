@@ -3,7 +3,7 @@ defmodule Ewebmachine.Mixfile do
 
   def project do
     [ app: :ewebmachine,
-      version: "2.0.10",
+      version: "2.0.11",
       docs: [
         main: "Ewebmachine",
         source_url: "https://github.com/awetzel/ewebmachine",

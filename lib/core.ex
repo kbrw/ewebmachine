@@ -63,7 +63,7 @@ defmodule Ewebmachine.Core do
     case resource_call(:is_authorized) do
       true -> d(v3b7)
       auth_head ->
-        d(set_resp_header("www-authenticate", auth_head))
+        d(set_resp_header("www-authenticate", to_string(auth_head)))
         d(401)
     end
   end
