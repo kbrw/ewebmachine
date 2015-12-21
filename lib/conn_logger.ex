@@ -26,8 +26,8 @@ defmodule Ewebmachine.Log do
   def put(conn), do: 
     GenServer.cast(__MODULE__,conn)
   def list do # fold only needed file for log listing for perfs
-    :ets.foldl(fn {_,%{method: m, path_info: pi, private: %{machine_log: l, machine_init_at: i}}},acc-> 
-       [%Conn{method: m,path_info: pi, private: %{machine_log: l,machine_init_at: i}}|acc]
+    :ets.foldl(fn {_,%{method: m, request_path: path, path_info: pi, private: %{machine_log: l, machine_init_at: i}}},acc-> 
+       [%Conn{method: m,request_path: path, path_info: pi, private: %{machine_log: l,machine_init_at: i}}|acc]
     end,[],:logs)
   end
   def get(id), do: 
