@@ -136,8 +136,8 @@ defmodule Ewebmachine.Core.API do
     (conn = Conn.put_private(conn,k,v); :ok)
 
   helper compute_body_md5 do
-    {:ok, body, conn} = Conn.read_body(conn, length: 1_000_000)
-    :crypto.hash(:md5,body)
+    conn = Ewebmachine.fetch_req_body(conn,[])
+    :crypto.hash(:md5,Ewebmachine.req_body(conn))
   end
 
   def first_or_nil([v|_]), do: v
