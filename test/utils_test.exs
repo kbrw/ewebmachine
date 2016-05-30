@@ -4,19 +4,19 @@ defmodule Ewebmachine.Core.UtilsTest do
   use ExUnit.Case
   import Ewebmachine.Core.Utils
 
-  test "Content Type negociation found a value" do
+  test "Content Type negotiation found a value" do
     for accept_header<-["*", "*/*", "text/*", "text/html"] do
       assert {"text","html",%{}} == choose_media_type([{"text","html",%{}}],accept_header)
     end
   end
 
-  test "Content Type negociation no matching value" do
+  test "Content Type negotiation no matching value" do
     for accept_header<-["foo", "text/xml", "application/*", "foo/bar/baz"] do
       assert nil == choose_media_type([{"text","html",%{}}], accept_header)
     end
   end
 
-  test "Content Type negociation quality selection" do
+  test "Content Type negotiation quality selection" do
     provided = [{"text","html",%{}},{"image","jpeg",%{}}]
     for accept_header<-["image/jpeg;q=0.5, text/html",
                         "text/html, image/jpeg; q=0.5",
