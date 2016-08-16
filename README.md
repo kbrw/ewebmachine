@@ -117,5 +117,5 @@ def application do
   [applications: [:logger,:ewebmachine,:cowboy], mod: {MyApp,[]}]
 end
 defp deps, do:
-  [{:ewebmachine, "2.0.0"}, {:cowboy, "~> 1.0"}]
+  [{:ewebmachine, "2.0.12"}, {:cowboy, "~> 1.0"}]
 ```
