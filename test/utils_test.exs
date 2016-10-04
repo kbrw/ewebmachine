@@ -12,7 +12,7 @@ defmodule Ewebmachine.Core.UtilsTest do
 
   test "Content Type negociation no matching value" do
     for accept_header<-["foo", "text/xml", "application/*", "foo/bar/baz"] do
-      assert nil = choose_media_type([{"text","html",%{}}], accept_header)
+      assert nil == choose_media_type([{"text","html",%{}}], accept_header)
     end
   end
 
