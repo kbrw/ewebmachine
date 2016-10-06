@@ -101,7 +101,7 @@ defmodule Ewebmachine.Core.API do
     conn = conn # halt machine when set response code, on respond
       |> Conn.put_status(code)
       |> Ewebmachine.Log.debug_enddecision
-    if !conn.resp_body, do: conn = %{conn|resp_body: ""}
+    conn = if !conn.resp_body, do: %{conn|resp_body: ""}, else: conn
     conn = %{conn|state: :set}
     :ok
   end
