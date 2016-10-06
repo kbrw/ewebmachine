@@ -274,8 +274,8 @@ defmodule Ewebmachine.Core do
     if resource_call(:post_is_create) do
       d(accept_helper)
       new_path = resource_call(:create_path)
-      if is_nil(new_path), do: raise(Exception, "post_is_create w/o create_path")
-      if !is_binary(new_path), do: raise(Exception, "create_path not a string (#{inspect new_path})")
+      if is_nil(new_path), do: raise "post_is_create w/o create_path"
+      if !is_binary(new_path), do: raise "create_path not a string (#{inspect new_path})"
       base_uri = resource_call(:base_uri)
       base_uri = if String.last(base_uri)=="/", do: String.slice(base_uri,0..-2), else: base_uri
       new_path = if !match?("/"<>_,new_path), do: "#{d(path)}/#{new_path}", else: new_path
@@ -424,7 +424,7 @@ defmodule Ewebmachine.Core do
   helper redirect_helper do
     if d(resp_redirect) do
       if !d(get_resp_header("location")), do:
-        raise(Exception, "Response had do_redirect but no Location")
+        raise "Response had do_redirect but no Location"
       d(303)
     else 
       d(v3p11) 
