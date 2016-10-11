@@ -64,16 +64,18 @@ defmodule Ewebmachine.Builder.Handlers do
 
     get "/get/user", do: GetUser.call(conn,[])
     get "/get/order", do: GetOrder.call(conn,[])
-  end
+    end
   ```
   """
   defmacro __before_compile__(_env) do
     quote do
       defp add_handlers(conn, opts) do
-        if opts && (init=opts[:init]), do:
-          conn = put_private(conn,:machine_init,init)
-        Plug.Conn.put_private(conn,:resource_handlers,
-          Enum.into(@resource_handlers,conn.private[:resource_handlers] || %{}))
+	init = opts[:init]
+        conn = if opts && init,
+	  do: put_private(conn, :machine_init, init),
+	  else: conn
+        Plug.Conn.put_private(conn, :resource_handlers,
+          Enum.into(@resource_handlers, conn.private[:resource_handlers] || %{}))
       end
     end
   end
