@@ -22,15 +22,23 @@ defmodule Ewebmachine.Plug.Run do
     A successfull run will reset the resource handlers and initial state.
   """
   def init(_opts), do: []
-  def call(conn,_opts) do
-    if (init=conn.private[:machine_init]) do
+  
+  def call(conn, _opts) do
+    init = conn.private[:machine_init]
+    if (init) do
       conn = Ewebmachine.Core.v3(conn,init)
-      if (log=conn.private[:machine_log]) do
+      log = conn.private[:machine_log]
+      if (log) do
         Ewebmachine.Log.put(conn)
         GenEvent.notify(Ewebmachine.Events,log)
       end
-      %{conn|private: Dict.drop(conn.private,[:machine_init,:resource_handlers,:machine_decisions,:machine_calls,:machine_log,:machine_init_at])}
-    else conn end
+      %{conn | private: Dict.drop(conn.private,
+	   [:machine_init,:resource_handlers,:machine_decisions,:machine_calls,:machine_log,:machine_init_at]
+	 )
+      }
+    else
+      conn
+    end
   end
 end
 
@@ -41,9 +49,11 @@ defmodule Ewebmachine.Plug.Send do
   """
   import Plug.Conn
   def init(_opts), do: []
-  def call(conn,_opts) do
+  
+  def call(conn, _opts) do
     if conn.state == :set do
-      if (stream=conn.private[:machine_body_stream]) do
+      stream = conn.private[:machine_body_stream]
+      if (stream) do
         conn = send_chunked(conn,conn.status)
         Enum.each(stream,&chunk(conn,&1))
         conn

@@ -23,9 +23,9 @@ defmodule Ewebmachine.Core.DSL do
     @compile :nowarn_unused_vars
   end end
 
-  def sig_to_sigwhen({:when,_,[{name,_,params},guard]}), do: {name,params,guard}
-  def sig_to_sigwhen({name,_,params}) when is_list(params), do: {name,params,true}
-  def sig_to_sigwhen({name,_,_}), do: {name,[],true}
+  def sig_to_sigwhen({:when, _, [{name,_,params}, guard]}), do: {name, params, guard}
+  def sig_to_sigwhen({name, _, params}) when is_list(params), do: {name, params, true}
+  def sig_to_sigwhen({name, _, _}), do: {name, [], true}
 
   defmacro resource_call(fun) do quote do
     handler = var!(conn).private[:resource_handlers][unquote(fun)] || Ewebmachine.Handlers
@@ -53,7 +53,7 @@ defmodule Ewebmachine.Core.DSL do
   end
 
   defmacro decision(sig, do: body) do
-    {name,params,guard} = sig_to_sigwhen(sig)
+    {name, params, guard} = sig_to_sigwhen(sig)
     params = (quote do: [var!(conn),var!(user_state)]) ++ params
     quote do
       def unquote(name)(unquote_splicing(params)) when unquote(guard) do
