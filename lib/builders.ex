@@ -137,9 +137,9 @@ defmodule Ewebmachine.Builder.Handlers do
   defh resources_exists(conn,_), do: false
   ```
   """
-  defmacro defh(signature,do_block) do
-    {name,[conn_match,state_match],guard} = sig_to_sigwhen(signature)
-    handler_quote(name,do_block[:do],guard,conn_match,state_match)
+  defmacro defh(signature, do_block) do
+    {name, [conn_match,state_match], guard} = sig_to_sigwhen(signature)
+    handler_quote(name, do_block[:do], guard, conn_match, state_match)
   end
 
   for resource_fun_name<-@resource_fun_names do

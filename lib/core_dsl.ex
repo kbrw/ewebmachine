@@ -1,143 +1,108 @@
 defmodule Ewebmachine.Core.DSL do
-  ## Macros and helpers defining the DSL for the Ewebmachine decision core :
-  ## It mainly hides the `conn` and `user_state` rebindings and logic.
-  ## The goal of the DSL was to mimic the one from the Basho
-  ## implementation which uses the process dictionnary in order to reuse
-  ## their decision core implementation.
+  ## Macros and helpers defining the DSL for the Ewebmachine decision
+  ## core : for legacy reasons, the module is called 'DSL' while they are
+  ## are mostly helper functions.
+  ##
+  ## Changes:
+  ##     Macros hiding `conn` and `user_state` variables have been removed
+  ##     as they can produce unsafe use of these variables if used in
+  ##     structures like if/cond/... which is deprecated in elixir 1.3
 
   ## Usage : 
 
-  ##     decision mydecision(arg1,arg2) do # def mydecision(conn,user_state,arg1,arg2)
-  ##       exists? = resource_call(:resource_exists)
-  ##       # here : the right module handler in found in the conn
-  ##       # then conn and user_state are rebinded according to its return
-  ##       d(otherdecision(arg3)) 
+  ##     decision mydecision(conn, user_state, args...) do # def mydecision(conn, user_state, arg...)
+  ##       ...debug_decision
+  ##       ...exec body
   ##     end
-  ##     helper myhelper(arg2) do :toto end #same as decision myhelper(arg2)
   @moduledoc false
+
+  alias Plug.Conn
 
   defmacro __using__(_opts) do quote do
     import Ewebmachine.Core.DSL
-    import Ewebmachine.Core.API
     import Ewebmachine.Core.Utils
-    @compile :nowarn_unused_vars
   end end
 
   def sig_to_sigwhen({:when, _, [{name,_,params}, guard]}), do: {name, params, guard}
   def sig_to_sigwhen({name, _, params}) when is_list(params), do: {name, params, true}
   def sig_to_sigwhen({name, _, _}), do: {name, [], true}
 
-  defmacro resource_call(fun) do quote do
-    handler = var!(conn).private[:resource_handlers][unquote(fun)] || Ewebmachine.Handlers
-    args = [var!(conn),var!(user_state)]
-    {reply, var!(conn), var!(user_state)} = term = apply(handler,unquote(fun),args)
-    var!(conn) = Ewebmachine.Log.debug_call(var!(conn),handler,unquote(fun),args,term)
-    case reply do
-      {:halt,code}->
-        d(set_response_code(code))
-        throw {:halt,var!(conn)}
-      _ ->:ok
-    end
-    reply
-  end end
-
-  defmacro helper(sig, do: body) do
-    {name,params,guard} = sig_to_sigwhen(sig)
-    params = (quote do: [var!(conn),var!(user_state)]) ++ params
-    quote do
-      def unquote(name)(unquote_splicing(params)) when unquote(guard) do
-        reply = unquote(body)
-        {reply,var!(conn),var!(user_state)}
-      end
-    end
-  end
-
   defmacro decision(sig, do: body) do
     {name, params, guard} = sig_to_sigwhen(sig)
-    params = (quote do: [var!(conn),var!(user_state)]) ++ params
+    [ conn, _state | _ ] = params
     quote do
       def unquote(name)(unquote_splicing(params)) when unquote(guard) do
-        var!(conn) = Ewebmachine.Log.debug_decision(var!(conn),unquote(name))
-        reply = unquote(body)
-        {reply,var!(conn),var!(user_state)}
+        conn = Ewebmachine.Log.debug_decision(unquote(conn), unquote(name))
+        unquote(body)
       end
     end 
   end
 
-  defmacro d(sig) when is_integer(sig) do 
-    quote do d(respond(unquote(sig))) end
-  end
-  defmacro d(sig) do
-    {name,params,_guard} = sig_to_sigwhen(sig)
-    params = (quote do: [var!(conn),var!(user_state)]) ++ params
-    quote do
-      {reply,var!(conn),var!(user_state)} = unquote(name)(unquote_splicing(params))
-      reply
+  def resource_call(conn, state, fun) do
+    handler = conn.private[:resource_handlers][fun] || Ewebmachine.Handlers
+    {reply, conn, state} = term = apply(handler, fun, [conn, state])
+    conn = Ewebmachine.Log.debug_call(conn, handler, fun, [conn, state], term)
+    case reply do
+      {:halt, code} ->
+	throw {:halt, set_response_code(conn, code)}
+      _ ->
+	{reply, conn, state}
     end
   end
-end
 
-defmodule Ewebmachine.Core.API do
-  import Ewebmachine.Core.DSL
-  alias Plug.Conn
-  @moduledoc false
+  def method(conn), do: conn.method
 
-  helper method, do: 
-    conn.method
+  def resp_redirect(conn), do: conn.private[:resp_redirect]
 
-  helper resp_redirect, do: 
-    conn.private[:resp_redirect]
+  def get_resp_header(conn, name), do: first_or_nil(Conn.get_resp_header(conn, name))
 
-  helper get_resp_header(name), do: 
-    first_or_nil(Conn.get_resp_header(conn,name))
+  def path(conn), do: conn.request_path
 
-  helper path, do: 
-    conn.request_path
+  def get_header_val(conn, name), do: first_or_nil(Conn.get_req_header(conn, name))
 
-  helper get_header_val(name), do: 
-    first_or_nil(Conn.get_req_header(conn,name))
-
-  helper set_response_code(code) do
+  def set_response_code(conn, code) do
     conn = conn # halt machine when set response code, on respond
-      |> Conn.put_status(code)
-      |> Ewebmachine.Log.debug_enddecision
-    conn = if !conn.resp_body, do: %{conn|resp_body: ""}, else: conn
-    conn = %{conn|state: :set}
-    :ok
+    |> Conn.put_status(code)
+    |> Ewebmachine.Log.debug_enddecision
+    conn = if !conn.resp_body, do: %{conn | resp_body: ""}, else: conn
+    %{conn | state: :set}
   end
 
-  helper set_resp_header(k,v), do: 
-    (conn = Conn.put_resp_header(conn,k,v); :ok)
+  def set_resp_header(conn, k, v), do: Conn.put_resp_header(conn, k, v)
+  
+  def set_resp_headers(conn, kvs) do
+    Enum.reduce(kvs, conn,
+      fn {k,v}, acc ->
+	Conn.put_resp_header(acc, k, v)
+      end)
+  end
 
-  helper set_resp_headers(kvs), do:
-    (conn = Enum.reduce(kvs,conn,fn {k,v},acc->Conn.put_resp_header(acc,k,v) end); :ok)
+  def remove_resp_header(conn, k) do
+    Conn.delete_resp_header(conn, k)
+  end
 
-  helper remove_resp_header(k), do:
-    (conn = Conn.delete_resp_header(conn,k); :ok)
+  def set_disp_path(conn, path), do: %{conn | script_name: String.split("#{path}","/")}
 
-  helper set_disp_path(path), do:
-    (conn = %{conn| script_name: String.split("#{path}","/")}; :ok)
+  def resp_body(conn), do: conn.private[:machine_body_stream] || conn.resp_body
 
-  helper resp_body, do:
-    (conn.private[:machine_body_stream] || conn.resp_body)
+  def set_resp_body(conn, body) when is_binary(body) or is_list(body) do
+    %{conn | resp_body: body}
+  end
+  def set_resp_body(conn, body) do          #if not an IO List, then it should be an enumerable
+    Conn.put_private(conn, :machine_body_stream, body)
+  end
 
-  helper set_resp_body(body) when is_binary(body) or is_list(body), do:
-    (conn = %{conn | resp_body: body}; :ok)
-  helper set_resp_body(body), do: #if not an IO List, then it should be an enumerable
-    (conn = Conn.put_private(conn,:machine_body_stream,body); :ok)
-
-  helper has_resp_body, do:
+  def has_resp_body(conn) do
     (!is_nil(conn.resp_body) or !is_nil(conn.private[:machine_body_stream]))
+  end
+  
+  def get_metadata(conn, key), do: conn.private[key]
 
-  helper get_metadata(key), do:
-    conn.private[key]
-
-  helper set_metadata(k,v), do:
-    (conn = Conn.put_private(conn,k,v); :ok)
-
-  helper compute_body_md5 do
-    conn = Ewebmachine.fetch_req_body(conn,[])
-    :crypto.hash(:md5,Ewebmachine.req_body(conn))
+  def set_metadata(conn, k, v), do: Conn.put_private(conn, k, v)
+  
+  def compute_body_md5(conn) do
+    conn = Ewebmachine.fetch_req_body(conn, [])
+    :crypto.hash(:md5, Ewebmachine.req_body(conn))
   end
 
   def first_or_nil([v|_]), do: v

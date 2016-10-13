@@ -1,5 +1,6 @@
 defmodule Ewebmachine.Core do
   use Ewebmachine.Core.DSL
+
   ## Basho webmachine Core rewrited in a systematic way to make the
   ## conversion as reliable as possible. The Ewebmachine.Core.DSL
   ## allows this conversion to be clean imitating the DSL of Basho.
@@ -8,7 +9,7 @@ defmodule Ewebmachine.Core do
   @spec v3(Plug.Conn.t, any) :: Plug.Conn.t
   def v3(conn, user_state) do
     try do
-      {_,conn,_} = v3b13(Ewebmachine.Log.debug_init(conn), user_state)
+      {_, conn, _} = v3b13(Ewebmachine.Log.debug_init(conn), user_state)
       conn
     catch
       :throw, {:halt,conn} -> conn
@@ -16,760 +17,801 @@ defmodule Ewebmachine.Core do
   end
 
   ## "Service Available"
-  decision v3b13 do
-    reply = resource_call(:ping)
+  decision v3b13(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :ping)
     if reply == :pong do
-      d(v3b13b)
+      v3b13b(conn, state)
     else
-      d(503)
+      respond(conn, state, 503)
     end
   end
   
   ## "see `v3b13/2`"
-  decision v3b13b do
-    reply = resource_call(:service_available)
+  decision v3b13b(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :service_available)
     if reply do
-      d(v3b12)
+      v3b12(conn, state)
     else
-      d(503)
+      respond(conn, state, 503)
     end
   end
   
   ## "Known method?"
-  decision v3b12 do
-    methods = resource_call(:known_methods)
-    if d(method) in methods do
-      d(v3b11)
+  decision v3b12(conn, state) do
+    {methods, conn, state} = resource_call(conn, state, :known_methods)
+    if method(conn) in methods do
+      v3b11(conn, state)
     else
-      d(501)
+      respond(conn, state, 501)
     end
   end
   
   ## "URI too long?"
-  decision v3b11 do
-    reply = resource_call(:uri_too_long)
+  decision v3b11(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :uri_too_long)
     if reply do
-      d(414)
+      respond(conn, state, 414)
     else
-      d(v3b10)
+      v3b10(conn, state)
     end
   end
   
   ## "Method allowed?"
-  decision v3b10 do
-    methods = resource_call(:allowed_methods)
-    if d(method) in methods do
-      d(v3b9)
+  decision v3b10(conn, state) do
+    {methods, conn, state} = resource_call(conn, state, :allowed_methods)
+    if method(conn) in methods do
+      v3b9(conn, state)
     else
-      d(set_resp_headers(%{"allow"=>Enum.join(methods,",")}))
-      d(405)
+      conn = set_resp_headers(conn, %{"allow" => Enum.join(methods,",")})
+      respond(conn, state, 405)
     end
   end
   
   ## "Content-MD5 present?"
-  decision v3b9 do
-    if d(get_header_val("content-md5")) do
-      d(v3b9a)
+  decision v3b9(conn, state) do
+    if get_header_val(conn, "content-md5") do
+      v3b9a(conn, state)
     else
-      d(v3b9b)
+      v3b9b(conn, state)
     end
   end
   
   ## "Content-MD5 valid?"
-  decision v3b9a do
-    reply = resource_call(:validate_content_checksum)
+  decision v3b9a(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :validate_content_checksum)
     case reply do
       :not_validated ->
-        case Base.decode64(d(get_header_val("content-md5"))) do
+        case Base.decode64(get_header_val(conn, "content-md5")) do
           {:ok, checksum} ->
-            body_hash = d(compute_body_md5)
-            if body_hash == checksum, do: d(v3b9b), else: d(400)
+            body_hash = compute_body_md5(conn)
+            if body_hash == checksum do
+	      v3b9b(conn, state)
+	    else
+	      respond(conn, state, 400)
+	    end
           _ ->
-	    d(400)
+	    respond(conn, state, 400)
         end
       false ->
-	d(400)
+	respond(conn, state, 400)
       _ ->
-	d(v3b9b)
+	v3b9b(conn, state)
     end
   end
   
   ## "Malformed?"
-  decision v3b9b do
-    reply = resource_call(:malformed_request)
+  decision v3b9b(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :malformed_request)
     if reply do
-      d(400)
+      respond(conn, state, 400)
     else
-      d(v3b8)
+      v3b8(conn, state)
     end
   end
   
   ## "Authorized?"
-  decision v3b8 do
-    reply = resource_call(:is_authorized)
+  decision v3b8(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :is_authorized)
     case reply do
       true ->
-	d(v3b7)
+	v3b7(conn, state)
       auth_head ->
-        d(set_resp_header("www-authenticate", to_string(auth_head)))
-        d(401)
+        conn = set_resp_header(conn, "www-authenticate", to_string(auth_head))
+	respond(conn, state, 401)
     end 
   end
   
   ## "Forbidden?"
-  decision v3b7 do
-    reply = resource_call(:forbidden)
+  decision v3b7(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :forbidden)
     if reply do
-      d(403)
+      respond(conn, state, 403)
     else
-      d(v3b6)
+      v3b6(conn, state)
     end
   end
   
   ## "Okay Content-* Headers?"
-  decision v3b6 do
-    reply = resource_call(:valid_content_headers)
+  decision v3b6(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :valid_content_headers)
     if reply do
-      d(v3b5)
+      v3b5(conn, state)
     else
-      d(501)
+      respond(conn, state, 501)
     end
   end
   
   ## "Known Content-Type?"
-  decision v3b5 do
-    reply = resource_call(:known_content_type)
+  decision v3b5(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :known_content_type)
     if reply do
-      d(v3b4)
+      v3b4(conn, state)
     else
-      d(415)
+      respond(conn, state, 415)
     end
   end
   
   ## "Req Entity Too Large?"
-  decision v3b4 do
-    reply = resource_call(:valid_entity_length)
+  decision v3b4(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :valid_entity_length)
     if reply do
-      d(v3b3)
+      v3b3(conn, state)
     else
-      d(413)
+      respond(conn, state, 413)
     end
   end
   
   ## "OPTIONS?"
-  decision v3b3 do
-    case d(method) do
+  decision v3b3(conn, state) do
+    case method(conn) do
       "OPTIONS"->
-        hdrs = resource_call(:options)
-        d(set_resp_headers(hdrs))
-        d(200)
+        {hdrs, conn, state} = resource_call(conn, state, :options)
+        conn = set_resp_headers(conn, hdrs)
+        respond(conn, state, 200)
       _ ->
-	d(v3c3)
+	v3c3(conn, state)
     end
   end
 
   ## "Accept exists?"
-  decision v3c3 do
-    ct_provided = resource_call(:content_types_provided)
+  decision v3c3(conn, state) do
+    {ct_provided, conn, state} = resource_call(conn, state, :content_types_provided)
     p_types = for {type,_fun} <- ct_provided, do: normalize_mtype(type)
-    case d(get_header_val("accept")) do
+    case get_header_val(conn, "accept") do
       nil ->
-	d(set_metadata(:'content-type', hd(p_types))); d(v3d4)
+	conn = set_metadata(conn, :'content-type', hd(p_types))
+	v3d4(conn, state)
       _ ->
-	d(v3c4)
+	v3c4(conn, state)
     end
   end
 
   ## "Acceptable media type available?"
-  decision v3c4 do
-    ct_provided = resource_call(:content_types_provided)
+  decision v3c4(conn, state) do
+    {ct_provided, conn, state} = resource_call(conn, state, :content_types_provided)
     p_types = for {type,_fun} <- ct_provided, do: normalize_mtype(type)
-    case choose_media_type(p_types, d(get_header_val("accept"))) do
+    case choose_media_type(p_types, get_header_val(conn, "accept")) do
       nil ->
-	d(406)
+	respond(conn, state, 406)
       type ->
-	d(set_metadata(:'content-type', type)); d(v3d4)
+	conn = set_metadata(conn, :'content-type', type)
+	v3d4(conn, state)
     end
   end
   
   ## "Accept-Language exists?"
-  decision v3d4 do
-    if d(get_header_val("accept-language")) do
-      d(v3d5)
+  decision v3d4(conn, state) do
+    if get_header_val(conn, "accept-language") do
+      v3d5(conn, state)
     else
-      d(v3e5)
+      v3e5(conn, state)
     end
   end
   
   ## "Acceptable Language available? %% WMACH-46 (do this as proper conneg)"
-  decision v3d5 do
-    reply = resource_call(:language_available)
+  decision v3d5(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :language_available)
     if reply do
-      d(v3e5)
+      v3e5(conn, state)
     else
-      d(406)
+      respond(conn, state, 406)
     end
   end
   
   ## "Accept-Charset exists?"
-  decision v3e5 do
-    case d(get_header_val("accept-charset")) do
+  decision v3e5(conn, state) do
+    case get_header_val(conn, "accept-charset") do
       nil ->
-	charset = d(choose_charset("*"))
+	charset = choose_charset(conn, state, "*")
 	if charset do
-	  d(v3f6)
+	  v3f6(conn, state)
 	else
-	  d(406)
+	  respond(conn, state, 406)
 	end
       _ ->
-	d(v3e6)
+	v3e6(conn, state)
     end
   end
   
   ## "Acceptable Charset available?"
-  decision v3e6 do
-    accept = d(get_header_val("accept-charset"))
-    charset = d(choose_charset(accept))
+  decision v3e6(conn, state) do
+    accept = get_header_val(conn, "accept-charset")
+    {charset, conn, state} = choose_charset(conn, state, accept)
     if charset do
-      d(v3f6)
+      v3f6(conn, state)
     else
-      d(406)
+      respond(conn, state, 406)
     end
   end
   
   ## Accept-Encoding exists?
   ## also, set content-type header here, now that charset is chosen)
-  decision v3f6 do
-    {type,subtype,params} = d(get_metadata(:'content-type'))
-    params = (char=d(get_metadata(:'chosen-charset'))) && Dict.put(params,:charset,char) || params
-    d(set_resp_header("content-type",format_mtype({type,subtype,params})))
-    case d(get_header_val("accept-encoding")) do
+  decision v3f6(conn, state) do
+    {type, subtype, params} = get_metadata(conn, :'content-type')
+    char = get_metadata(conn, :'chosen-charset')
+    params = char && Dict.put(params, :charset, char) || params
+    conn = set_resp_header(conn, "content-type", format_mtype({type,subtype,params}))
+    case get_header_val(conn, "accept-encoding") do
       nil ->
-	encoding = d(choose_encoding("identity;q=1.0,*;q=0.5"))
+	{encoding, conn, state} = choose_encoding(conn, state, "identity;q=1.0,*;q=0.5")
 	if encoding do
-	  d(v3g7)
+	  v3g7(conn, state)
 	else
-	  d(406)
+	  respond(conn, state, 406)
 	end
       _ ->
-	d(v3f7)
+	v3f7(conn, state)
     end
   end
   
   ## "Acceptable encoding available?"
-  decision v3f7 do
-    accept = d(get_header_val("accept-encoding"))
-    encoding = d(choose_encoding(accept))
+  decision v3f7(conn, state) do
+    accept = get_header_val(conn, "accept-encoding")
+    {encoding, conn, state} = choose_encoding(conn, state, accept)
     if encoding do
-      d(v3g7)
+      v3g7(conn, state)
     else
-      d(406)
+      respond(conn, state, 406)
     end
   end
   
   ## "Resource exists?"
-  decision v3g7 do
+  decision v3g7(conn, state) do
     ## his is the first place after all conneg, so set Vary here
-    vars = d(variances)
-    if length(vars)>0 do
-      d(set_resp_header("vary",Enum.join(vars,",")))
+    {vars, conn, state} = variances(conn, state)
+    conn = if length(vars) > 0 do
+      set_resp_header(conn, "vary", Enum.join(vars, ","))
+    else
+      conn
     end
 
-    reply = resource_call(:resource_exists)
+    {reply, conn, state} = resource_call(conn, state, :resource_exists)
     if reply do
-      d(v3g8)
+      v3g8(conn, state)
     else
-      d(v3h7)
+      v3h7(conn, state)
     end
   end
   
   ## "If-Match exists?"
-  decision v3g8 do
-    if d(get_header_val("if-match")) do
-      d(v3g9)
+  decision v3g8(conn, state) do
+    if get_header_val(conn, "if-match") do
+      v3g9(conn, state)
     else
-      d(v3h10)
+      v3h10(conn, state)
     end
   end
     
   ## "If-Match: * exists"
-  decision v3g9 do
-    if d(get_header_val("if-match")) == "*" do
-      d(v3h10)
+  decision v3g9(conn, state) do
+    if get_header_val(conn, "if-match") == "*" do
+      v3h10(conn, state)
     else
-      d(v3g11)
+      v3g11(conn, state)
     end
   end
   
   ## "ETag in If-Match"
-  decision v3g11 do
-    etags = split_quoted_strings(d(get_header_val("if-match")))
-    reply = resource_call(:generate_etag)
+  decision v3g11(conn, state) do
+    etags = split_quoted_strings(get_header_val(conn, "if-match"))
+    {reply, conn, state} = resource_call(conn, state, :generate_etag)
     if reply in etags do
-      d(v3h10)
+      v3h10(conn, state)
     else
-      d(412)
+      respond(conn, state, 412)
     end
   end
   
   ## "If-Match exists"
-  decision v3h7 do
-    if d(get_header_val("if-match")) do
-      d(412)
+  decision v3h7(conn, state) do
+    if get_header_val(conn, "if-match") do
+      respond(conn, state, 412)
     else
-      d(v3i7)
+      v3i7(conn, state)
     end
   end
   
   ## "If-unmodified-since exists?"
-  decision v3h10 do
-    if d(get_header_val("if-unmodified-since")) do
-      d(v3h11)
+  decision v3h10(conn, state) do
+    if get_header_val(conn, "if-unmodified-since") do
+      v3h11(conn, state)
     else
-      d(v3i12)
+      v3i12(conn, state)
     end
   end
   
   ## "I-UM-S is valid date?"
-  decision v3h11 do
-    iums_date = d(get_header_val("if-unmodified-since"))
+  decision v3h11(conn, state) do
+    iums_date = get_header_val(conn, "if-unmodified-since")
     if convert_request_date(iums_date) == :bad_date do
-      d(v3i12)
+      v3i12(conn, state)
     else
-      d(v3h12)
+      v3h12(conn, state)
     end
   end
   
   ## "Last-Modified > I-UM-S?"
-  decision v3h12 do
-    req_date = d(get_header_val("if-unmodified-since"))
+  decision v3h12(conn, state) do
+    req_date = get_header_val(conn, "if-unmodified-since")
     req_erl_date = convert_request_date(req_date)
-    res_erl_date = resource_call(:last_modified)
+    {res_erl_date, conn, state} = resource_call(conn, state, :last_modified)
     if res_erl_date > req_erl_date do
-      d(412)
+      respond(conn, state, 412)
     else
-      d(v3i12)
+      v3i12(conn, state)
     end
   end
+  
   ## "Moved permanently? (apply PUT to different URI)"
-  decision v3i4 do
-    reply = resource_call(:moved_permanently)
+  decision v3i4(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :moved_permanently)
     case reply do
       {true, moved_uri} ->
-	d(set_resp_header("location", moved_uri)); d(301)
+	conn = set_resp_header(conn, "location", moved_uri)
+	respond(conn, state, 301)
       false ->
-	d(v3p3)
+	v3p3(conn, state)
     end
   end
   
   ## "PUT?"
-  decision v3i7 do
-    if d(method) == "PUT" do
-      d(v3i4)
+  decision v3i7(conn, state) do
+    if method(conn) == "PUT" do
+      v3i4(conn, state)
     else
-      d(v3k7)
+      v3k7(conn, state)
     end
   end
   
   ## "If-none-match exists?"
-  decision v3i12 do
-    if d(get_header_val("if-none-match")) do
-      d(v3i13)
+  decision v3i12(conn, state) do
+    if get_header_val(conn, "if-none-match") do
+      v3i13(conn, state)
     else
-      d(v3l13)
+      v3l13(conn, state)
     end
   end
   
   ## "If-None-Match: * exists?"
-  decision v3i13 do
-    if d(get_header_val("if-none-match")) == "*" do
-      d(v3j18)
+  decision v3i13(conn, state) do
+    if get_header_val(conn, "if-none-match") == "*" do
+      v3j18(conn, state)
     else
-      d(v3k13)
+      v3k13(conn, state)
     end
   end
   
   ## "GET or HEAD?"
-  decision v3j18 do
-    if d(method) in ["GET","HEAD"] do
-      d(304)
+  decision v3j18(conn, state) do
+    if method(conn) in ["GET","HEAD"] do
+      respond(conn, state, 304)
     else
-      d(412)
+      respond(conn, state, 412)
     end
   end
   
   ## "Moved permanently?"
-  decision v3k5 do
-    reply = resource_call(:moved_permanently)
+  decision v3k5(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :moved_permanently)
     case reply do
       {true, moved_uri} ->
-	d(set_resp_header("location",moved_uri)); d(301)
+	set_resp_header(conn, "location", moved_uri)
+	respond(conn, state, 301)
       false ->
-	d(v3l5)
+	v3l5(conn, state)
     end
   end
   
   ## "Previously existed?"
-  decision v3k7 do
-    reply = resource_call(:previously_existed)
+  decision v3k7(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :previously_existed)
     if reply do
-      d(v3k5)
+      v3k5(conn, state)
     else
-      d(v3l7)
+      v3l7(conn, state)
     end
   end
   
   ## "Etag in if-none-match?"
-  decision v3k13 do
-    etags = split_quoted_strings(d(get_header_val("if-none-match")))
+  decision v3k13(conn, state) do
+    etags = split_quoted_strings(get_header_val(conn, "if-none-match"))
     ## Membership test is a little counter-intuitive here; if the
     ## provided ETag is a member, we follow the error case out
     ## via v3j18.
-    if resource_call(:generate_etag) in etags do
-      d(v3j18)
+    {etag, conn, state} = resource_call(conn, state, :generate_etag)
+    if etag in etags do
+      v3j18(conn, state)
     else
-      d(v3l13)
+      v3l13(conn, state)
     end
   end
   
   ## "Moved temporarily?"
-  decision v3l5 do
-    case resource_call(:moved_temporarily) do
+  decision v3l5(conn, state) do
+    {moved, conn, state} = resource_call(conn, state, :moved_temporarily)
+    case moved do
       {true, moved_uri} ->
-	d(set_resp_header("location", moved_uri)); d(307)
+	set_resp_header(conn, "location", moved_uri)
+	respond(conn, state, 307)
       false ->
-	d(v3m5)
+	v3m5(conn, state)
     end
   end
   
   ## "POST?"
-  decision v3l7 do
-    if d(method) == "POST" do
-      d(v3m7)
+  decision v3l7(conn, state) do
+    if method(conn) == "POST" do
+      v3m7(conn, state)
     else
-      d(404)
+      respond(conn, state, 404)
     end
   end
   
   ## "IMS exists?"
-  decision v3l13 do
-    if d(get_header_val("if-modified-since")) do
-      d(v3l14)
+  decision v3l13(conn, state) do
+    if get_header_val(conn, "if-modified-since") do
+      v3l14(conn, state)
     else
-      d(v3m16)
+      v3m16(conn, state)
     end
   end
   
   ## "IMS is valid date?"
-  decision v3l14 do
-    ims_date = d(get_header_val("if-modified-since"))
+  decision v3l14(conn, state) do
+    ims_date = get_header_val(conn, "if-modified-since")
     if convert_request_date(ims_date) == :bad_date do
-      d(v3m16)
+      v3m16(conn, state)
     else
-      d(v3l15)
+      v3l15(conn, state)
     end
   end
   
   ## "IMS > Now?"
-  decision v3l15 do
+  decision v3l15(conn, state) do
     now_date_time = :calendar.universal_time
-    req_date = d(get_header_val("if-modified-since"))
+    req_date = get_header_val(conn, "if-modified-since")
     req_erl_date = convert_request_date(req_date)
     if req_erl_date > now_date_time do
-      d(v3m16)
+      v3m16(conn, state)
     else
-      d(v3l17)
+      v3l17(conn, state)
     end
   end
   
   ## "Last-Modified > IMS?"
-  decision v3l17 do
-    req_date = d(get_header_val("if-modified-since"))
+  decision v3l17(conn, state) do
+    req_date = get_header_val(conn, "if-modified-since")
     req_erl_date = convert_request_date(req_date)
-    res_erl_date = resource_call(:last_modified)
+    {res_erl_date, conn, state} = resource_call(conn, state, :last_modified)
     if !res_erl_date or res_erl_date > req_erl_date do
-      d(v3m16)
+      v3m16(conn, state)
     else
-      d(304)
+      respond(conn, state, 304)
     end
   end
   
   ## "POST?"
-  decision v3m5 do
-    if d(method) == "POST" do
-      d(v3n5)
+  decision v3m5(conn, state) do
+    if method(conn) == "POST" do
+      v3n5(conn, state)
     else
-      d(410)
+      respond(conn, state, 410)
     end
   end
   
   ## "Server allows POST to missing resource?"
-  decision v3m7 do
-    if resource_call(:allow_missing_post) do
-      d(v3n11)
+  decision v3m7(conn, state) do
+    {amp, conn, state} = resource_call(conn, state, :allow_missing_post)
+    if amp do
+      v3n11(conn, state)
     else
-      d(404)
+      respond(conn, state, 404)
     end
   end
   
   ## "DELETE?"
-  decision v3m16 do
-    if d(method) == "DELETE" do
-      d(v3m20)
+  decision v3m16(conn, state) do
+    if method(conn) == "DELETE" do
+      v3m20(conn, state)
     else
-      d(v3n16)
+      v3n16(conn, state)
     end
   end
   
   ## "DELETE enacted immediately?  Also where DELETE is forced"
-  decision v3m20 do
-    result = resource_call(:delete_resource)
+  decision v3m20(conn, state) do
+    {result, conn, state} = resource_call(conn, state, :delete_resource)
     ## DELETE may have body and TCP connection will be closed unless body is read
     ## See mochiweb_request:should_close.
     ## TODO, see how to flush req body stream
     if result do
-      d(v3m20b)
+      v3m20b(conn, state)
     else
-      d(500)
+      respond(conn, state, 500)
     end
   end
   
-  decision v3m20b do
-    reply = resource_call(:delete_completed)
+  decision v3m20b(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :delete_completed)
     if reply do
-      d(v3o20)
+      v3o20(conn, state)
     else
-      d(202)
+      respond(conn, state, 202)
     end
   end
   
   ## "Server allows POST to missing resource?"
-  decision v3n5 do
-    reply = resource_call(:allow_missing_post)
+  decision v3n5(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :allow_missing_post)
     if reply do
-      d(v3n11)
+      v3n11(conn, state)
     else
-      d(410)
+      respond(conn, state, 410)
     end
   end
   
   ## "Redirect?"
-  decision v3n11 do
-    reply = resource_call(:post_is_create)
+  decision v3n11(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :post_is_create)
     if reply do
-      d(accept_helper)
-      new_path = resource_call(:create_path)
+      conn = accept_helper(conn, state)
+      {new_path, conn, state} = resource_call(conn, state, :create_path)
 
       if is_nil(new_path), do: raise "post_is_create w/o create_path"
       if !is_binary(new_path), do: raise "create_path not a string (#{inspect new_path})"
       
-      base_uri = resource_call(:base_uri)
+      {base_uri, conn, state} = resource_call(conn, state, :base_uri)
       base_uri = if String.last(base_uri) == "/" do
 	String.slice(base_uri,0..-2)
       else
 	base_uri
       end
       new_path = if !match?("/"<>_, new_path) do
-	"#{d(path)}/#{new_path}"
+	"#{path(conn)}/#{new_path}"
       else
 	new_path
       end
       
-      if !d(get_resp_header("location")) do
-        d(set_resp_header("location", base_uri <> new_path))
+      conn = if !get_resp_header(conn, "location") do
+        set_resp_header(conn, "location", base_uri <> new_path)
+      else
+	conn
       end
+      redirect_helper(conn, state)
     else
-      true = resource_call(:process_post)
-      d(encode_body_if_set)
+      {true, conn, state} = resource_call(conn, state, :process_post)
+      conn = encode_body_if_set(conn, state)
+      redirect_helper(conn, state)
     end
-    d(redirect_helper)
   end
   
   ## "POST?"
-  decision v3n16 do
-    if d(method) == "POST" do
-      d(v3n11)
+  decision v3n16(conn, state) do
+    if method(conn) == "POST" do
+      v3n11(conn, state)
     else
-      d(v3o16)
+      v3o16(conn, state)
     end
   end
-    
+  
   ## "Conflict?"
-  decision v3o14 do
-    case resource_call(:is_conflict) do
+  decision v3o14(conn, state) do
+    {conflict, conn, state} = resource_call(conn, state, :is_conflict)
+    case conflict do
       true ->
-	d(409)
+	respond(conn, state, 409)
       _ -> 
-        d(accept_helper)
-        d(v3p11)
+        conn = accept_helper(conn, state)
+        v3p11(conn, state)
     end
   end
   
   ## "PUT?"
-  decision v3o16 do
-    if d(method) == "PUT" do
-      d(v3o14)
+  decision v3o16(conn, state) do
+    if method(conn) == "PUT" do
+      v3o14(conn, state)
     else
-      d(v3o18)
+      v3o18(conn, state)
     end
   end
   
   ## Multiple representations?
   ## also where body generation for GET and HEAD is done)
-  decision v3o18 do
-    final_body = if d(method) in ["GET","HEAD"] do
-      if (etag=resource_call(:generate_etag)) do
-        d(set_resp_header("etag",quoted_string(etag)))
-      end
-      ct = d(get_metadata(:'content-type'))
-      if (lm=resource_call(:last_modified)) do
-        d(set_resp_header("last-modified",rfc1123_date(lm)))
-      end
-      if (exp=resource_call(:expires)) do
-        d(set_resp_header("expires",rfc1123_date(exp)))
-      end
-      ct_provided = resource_call(:content_types_provided)
-      f = Enum.find_value(ct_provided,fn {t,f}->normalize_mtype(t)==ct && f end)
-      body = resource_call(f)
-      body = d(encode_body(body))
-      d(set_resp_body(body))
-      d(v3o18b)
+  decision v3o18(conn, state) do
+    if method(conn) in ["GET","HEAD"] do
+      {etag, conn, state} = resource_call(conn, state, :generate_etag)
+      conn = if etag, do: set_resp_header(conn, "etag", quoted_string(etag)), else: conn
+
+      ct = get_metadata(conn, :'content-type')
+
+      {lm, conn, state} = resource_call(conn, state, :last_modified)
+      conn = if lm, do: set_resp_header(conn, "last-modified", rfc1123_date(lm)), else: conn
+      {exp, conn, state} = resource_call(conn, state, :expires)
+      conn = if exp, do: set_resp_header(conn, "expires", rfc1123_date(exp)), else: conn
+      {ct_provided, conn, state} = resource_call(conn, state, :content_types_provided)
+      f = Enum.find_value(ct_provided, fn {t,f} -> normalize_mtype(t) == ct && f end)
+      {body, conn, state} = resource_call(conn, state, f)
+      conn = set_resp_body(conn, encode_body(conn, state, body))
+      v3o18b(conn, state)
     else
-      d(v3o18b)
+      v3o18b(conn, state)
     end
   end
   
-  decision v3o18b do
-    reply = resource_call(:multiple_choices)
-    if reply do
-      d(300)
+  decision v3o18b(conn, state) do
+    {mc, conn, state} = resource_call(conn, state, :multiple_choices)
+    if mc do
+      respond(conn, state, 300)
     else
-      d(200)
+      respond(conn, state, 200)
     end
   end
   
   ## "Response includes an entity?"
-  decision v3o20 do
-    if d(has_resp_body) do
-      d(v3o18)
+  decision v3o20(conn, state) do
+    if has_resp_body(conn) do
+      v3o18(conn, state)
     else
-      d(204)
+      respond(conn, state, 204)
     end
   end
   
   ## "Conflict?"
-  decision v3p3 do
-    reply = resource_call(:is_conflict)
+  decision v3p3(conn, state) do
+    {reply, conn, state} = resource_call(conn, state, :is_conflict)
     if reply do
-      d(409)
+      respond(conn, state, 409)
     else
-      d(accept_helper)
-      d(v3p11)
+      conn = accept_helper(conn, state)
+      v3p11(conn, state)
     end
   end
   
   ## "New resource?  (at this point boils down to \"has location header\")"
-  decision v3p11 do
-    if d(get_resp_header("location")) do
-      d(201)
+  decision v3p11(conn, state) do
+    if get_resp_header(conn, "location") do
+      respond(conn, state, 201)
     else
-      d(v3o20)
-    end
-  end
-
-  helper variances do
-    ct_provided = resource_call(:content_types_provided)
-    enc_provided = resource_call(:encodings_provided)
-    accept = if length(ct_provided)<2, do: [], else: ["Accept"]
-    accept_enc = if length(enc_provided)<2, do: [], else: ["Accept-Encoding"]
-    accept_char = case resource_call(:charsets_provided) do
-        :no_charset -> []
-        charset -> if length(charset)<2, do: [], else: ["Accept-Charset"]
-    end
-    variances = resource_call :variances
-    accept ++ accept_enc ++ accept_char ++ variances
-  end
-
-  helper accept_helper do
-    ct = d(get_header_val("content-type")) || "application/octet-stream"
-    {_,_,h_params}=ct=normalize_mtype(ct)
-    d(set_metadata(:mediaparams,h_params))
-    ct_accepted = resource_call(:content_types_accepted)
-    mtfun = Enum.find_value(ct_accepted, fn {accept,f}->fuzzy_mt_match(ct,normalize_mtype(accept)) && f end)
-    if mtfun do 
-      resource_call(mtfun)
-      d(encode_body_if_set)
-    else 
-      d(415)
-      throw {:halt,conn}
+      v3o20(conn, state)
     end
   end
   
-  helper encode_body_if_set do
-    if d(has_resp_body) do
-      body = d(resp_body)
-      d(set_resp_body(d(encode_body(body))))
+  ###
+  ### Helpers
+  ###
+  def variances(conn, state) do
+    {ct_provided, conn, state} = resource_call(conn, state, :content_types_provided)
+    {enc_provided, conn, state} = resource_call(conn, state, :encodings_provided)
+    accept = if length(ct_provided) < 2, do: [], else: ["Accept"]
+    accept_enc = if length(enc_provided) < 2, do: [], else: ["Accept-Encoding"]
+    accept_char = case resource_call(conn, state, :charsets_provided) do
+		    {:no_charset, _, _} -> []
+		    {charset, _, _} -> if length(charset) < 2, do: [], else: ["Accept-Charset"]
+		  end
+    {variances, conn, state} = resource_call(conn, state, :variances)
+    {accept ++ accept_enc ++ accept_char ++ variances, conn, state}
+  end
+  
+  def accept_helper(conn, state) do
+    ct = get_header_val(conn, "content-type") || "application/octet-stream"
+    {_, _, h_params} = ct = normalize_mtype(ct)
+    conn = set_metadata(conn, :mediaparams, h_params)
+    {ct_accepted, conn, state} = resource_call(conn, state, :content_types_accepted)
+    
+    mtfun = Enum.find_value(ct_accepted, fn {accept,f} ->
+      fuzzy_mt_match(ct,normalize_mtype(accept)) && f
+    end)
+      
+    if mtfun do
+      {_reply, conn, state} = resource_call(conn, state, mtfun)
+      encode_body_if_set(conn, state)
+    else
+      respond(conn, state, 415)
+      throw {:halt, conn}
+    end
+  end
+      
+  def encode_body_if_set(conn, state) do
+    if has_resp_body(conn) do
+      body = resp_body(conn)
+      set_resp_body(conn, encode_body(conn, state, body))
+    else
+      conn
     end
   end
   
-  helper encode_body(body) do
-    chosen_cset = d(get_metadata(:'chosen-charset'))
-    charsetter = case resource_call(:charsets_provided) do
-      :no_charset -> &(&1)
-      cp -> Enum.find_value(cp, fn {c,f}-> (to_string(c) == chosen_cset) && f end) || &(&1)
-    end
-    chosen_enc = d(get_metadata(:'content-encoding'))
-    encoder = Enum.find_value(resource_call(:encodings_provided), 
-                fn {enc,f}-> (to_string(enc) == chosen_enc) && f end) || &(&1)
+  def encode_body(conn, state, body) do
+    chosen_cset = get_metadata(conn, :'chosen-charset')
+    charsetter = case resource_call(conn, state, :charsets_provided) do
+		   {:no_charset, _, _} -> &(&1)
+		   {cp, _, _} -> Enum.find_value(cp, fn {c,f} -> (to_string(c) == chosen_cset) && f end) || &(&1)
+		 end
+    chosen_enc = get_metadata(conn, :'content-encoding')
+    {enc_provided, _, _} = resource_call(conn, state, :encodings_provided)
+    encoder = Enum.find_value(enc_provided,
+      fn {enc,f} -> (to_string(enc) == chosen_enc) && f end) || &(&1)
     case body do
-      body when is_binary(body) or is_list(body)-> body |> IO.iodata_to_binary |> charsetter.() |> encoder.()
-      _-> body |> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
+      body when is_binary(body) or is_list(body) ->
+	body |> IO.iodata_to_binary |> charsetter.() |> encoder.()
+      _->
+	body |> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
     end
   end
   
-  helper choose_encoding(acc_enc_hdr) do
-    enc_provided = resource_call(:encodings_provided)
-    encs = for {enc,_}<-enc_provided, do: to_string(enc)
-    if(chosen_enc=choose_encoding(encs, acc_enc_hdr)) do
-      if chosen_enc !== "identity", do:
-        d(set_resp_header("content-encoding",chosen_enc))
-      d(set_metadata(:'content-encoding',chosen_enc))
-      chosen_enc
+  def choose_encoding(conn, state, acc_enc_hdr) do
+    {enc_provided, _, _} = resource_call(conn, state, :encodings_provided)
+    encs = for {enc,_} <- enc_provided, do: to_string(enc)
+    chosen_enc = choose_encoding(encs, acc_enc_hdr)
+    conn = if chosen_enc !== "identity" do
+      set_resp_header(conn, "content-encoding", chosen_enc)
+    else
+      conn
     end
+    conn = set_metadata(conn, :'content-encoding', chosen_enc)
+    {chosen_enc, conn, state}
   end
   
-  helper choose_charset(acc_char_hdr) do
-    case resource_call(:charsets_provided) do
-      :no_charset -> :no_charset
-      cl ->
-        charsets = for {cset,_f}<-cl, do: to_string(cset)
-        if (charset=choose_charset(charsets, acc_char_hdr)) do
-          d(set_metadata(:'chosen-charset',charset))
-          charset
+  def choose_charset(conn, state, acc_char_hdr) do
+    case resource_call(conn, state, :charsets_provided) do
+      {:no_charset, conn, state} ->
+	{:no_charset, conn, state}
+      {cl, conn, state} ->
+        charsets = for {cset,_f} <- cl, do: to_string(cset)
+	charset = choose_charset(charsets, acc_char_hdr)
+        conn = if (charset) do
+          set_metadata(conn, :'chosen-charset', charset)
+	else
+	  conn
         end
+	{charset, conn, state}
     end
   end
 
-  helper redirect_helper do
-    if d(resp_redirect) do
-      if !d(get_resp_header("location")), do:
+  def redirect_helper(conn, state) do
+    if resp_redirect(conn) do
+      if !get_resp_header(conn, "location") do
         raise "Response had do_redirect but no Location"
-      d(303)
-    else 
-      d(v3p11) 
+      else
+	respond(conn, state, 303)
+      end
+    else
+      	v3p11(conn, state)
     end
   end
   
-  helper respond(code) do
-    if code == 304 do
-      d(remove_resp_header("content-type"))
-      if (etag=resource_call(:generate_etag)), do:
-        d(set_resp_header("etag", quoted_string(etag)))
-      if (exp=resource_call(:expires)), do:
-        d(set_resp_header("expires",rfc1123_date(exp)))
+  def respond(conn, state, code) do
+    {conn, state} = if (code == 304) do
+      conn = remove_resp_header(conn, "content-type")
+      {etag, conn, state} = resource_call(conn, state, :generate_etag)
+      conn = if etag, do: set_resp_header(conn, "etag", quoted_string(etag)), else: conn
+      
+      {exp, conn, state} = resource_call(conn, state, :expires)
+      conn = if exp, do: set_resp_header(conn, "expires", rfc1123_date(exp)), else: conn
+      {conn, state}
+    else
+      {conn, state}
     end
-    d(set_response_code(code))
-    resource_call(:finish_request)
+    conn = set_response_code(conn, code)
+    resource_call(conn, state, :finish_request)    
   end
 end
-
