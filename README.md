@@ -70,7 +70,7 @@ defmodule FullApi do
   resource "/hello/json/:name" do %{name: name} after 
     plug MyJSONApi #this is also a plug pipeline
     allowed_methods do: ["GET","DELETE"]
-    resource_exists do: pass((user=DB.get(state.name)) !== nil, json_obj: user
+    resource_exists do: pass((user=DB.get(state.name)) !== nil, json_obj: user)
     delete_resource do: DB.delete(state.name)
   end
 
