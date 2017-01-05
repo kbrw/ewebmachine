@@ -28,14 +28,13 @@ defmodule Ewebmachine.Core.DSL do
   def sig_to_sigwhen({name, _, _}), do: {name, [], true}
 
   defmacro decision(sig, do: body) do
-    {name, params, guard} = sig_to_sigwhen(sig)
-    [ conn, _state | _ ] = params
+    {name, [conn, state], guard} = sig_to_sigwhen(sig)
     quote do
-      def unquote(name)(unquote_splicing(params)) when unquote(guard) do
-        conn = Ewebmachine.Log.debug_decision(unquote(conn), unquote(name))
+      def unquote(name)(unquote(conn), unquote(state)) when unquote(guard) do
+        var!(conn) = Ewebmachine.Log.debug_decision(unquote(conn), unquote(name))
         unquote(body)
       end
-    end 
+    end
   end
 
   def resource_call(conn, state, fun) do
