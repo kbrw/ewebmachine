@@ -181,7 +181,7 @@ defmodule Ewebmachine.Core.Utils do
   end
 
   @doc "Convert rfc1123 or rfc850 to :calendar dates"
-  @spec convert_request_date(String.t) :: {{year::integer,month::integer,day::integer}, {h::integer, min::integer, sec::integer}}
+  @spec convert_request_date(String.t) :: {{year::integer,month::integer,day::integer}, {h::integer, min::integer, sec::integer}} | :bad_date
   def convert_request_date(date) do
     try do :httpd_util.convert_request_date('#{date}') catch _,_ -> :bad_date end
   end
