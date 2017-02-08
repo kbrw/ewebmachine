@@ -150,7 +150,7 @@ defmodule Ewebmachine.Core.Utils do
   - `accept_header`, the HTTP header `Accept`
   - `ct_provided`, the list of provided content types
   """
-  @spec choose_media_type([norm_content_type],String.t) :: norm_content_type
+  @spec choose_media_type([norm_content_type],String.t) :: norm_content_type | nil
   def choose_media_type(ct_provided,accept_header) do
     accepts = accept_header |> Plug.Conn.Utils.list |> Enum.map(fn "*"->"*/*";e->e end) |>  Enum.map(&Plug.Conn.Utils.media_type/1)
     accepts = for {:ok,type,subtype,params}<-accepts do 
