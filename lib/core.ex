@@ -18,11 +18,11 @@ defmodule Ewebmachine.Core do
 
   ## "Service Available"
   decision v3b13(conn, state) do
-    {reply, conn, state} = resource_call(conn, state, :ping)
-    if reply == :pong do
-      v3b13b(conn, state)
-    else
-      respond(conn, state, 503)
+    case resource_call(conn, state, :ping) do
+      {:pong, conn, state} ->
+	v3b13b(conn, state);
+      {_, conn, state} ->
+	respond(conn, state, 503)
     end
   end
   
@@ -49,7 +49,7 @@ defmodule Ewebmachine.Core do
   ## "URI too long?"
   decision v3b11(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :uri_too_long)
-    if reply do
+    if reply  do
       respond(conn, state, 414)
     else
       v3b10(conn, state)
@@ -78,56 +78,54 @@ defmodule Ewebmachine.Core do
   
   ## "Content-MD5 valid?"
   decision v3b9a(conn, state) do
-    {reply, conn, state} = resource_call(conn, state, :validate_content_checksum)
-    case reply do
-      :not_validated ->
+    case resource_call(conn, state, :validate_content_checksum) do
+      {:not_validated, conn, state} ->
         case Base.decode64(get_header_val(conn, "content-md5")) do
           {:ok, checksum} ->
-            body_hash = compute_body_md5(conn)
-            if body_hash == checksum do
-	      v3b9b(conn, state)
-	    else
-	      respond(conn, state, 400)
+	    case compute_body_md5(conn) do
+	      ^checksum ->
+		v3b9b(conn, state);
+	      _ ->
+		respond(conn, state, 400)
 	    end
           _ ->
 	    respond(conn, state, 400)
         end
-      false ->
+      {false, conn, state} ->
 	respond(conn, state, 400)
-      _ ->
+      {_, conn, state} ->
 	v3b9b(conn, state)
     end
   end
   
   ## "Malformed?"
   decision v3b9b(conn, state) do
-    {reply, conn, state} = resource_call(conn, state, :malformed_request)
-    if reply do
-      respond(conn, state, 400)
-    else
-      v3b8(conn, state)
+    case resource_call(conn, state, :malformed_request) do
+      {true, conn, state} ->
+	respond(conn, state, 400)
+      {false, conn, state} ->
+	v3b8(conn, state)
     end
   end
   
   ## "Authorized?"
   decision v3b8(conn, state) do
-    {reply, conn, state} = resource_call(conn, state, :is_authorized)
-    case reply do
-      true ->
+    case resource_call(conn, state, :is_authorized) do
+      {true, conn, state} ->
 	v3b7(conn, state)
-      auth_head ->
+      {auth_head, conn, state} ->
         conn = set_resp_header(conn, "www-authenticate", to_string(auth_head))
 	respond(conn, state, 401)
-    end 
+    end
   end
   
   ## "Forbidden?"
   decision v3b7(conn, state) do
-    {reply, conn, state} = resource_call(conn, state, :forbidden)
-    if reply do
-      respond(conn, state, 403)
-    else
-      v3b6(conn, state)
+    case resource_call(conn, state, :forbidden) do
+      {true, conn, state} ->
+	respond(conn, state, 403);
+      {false, conn, state} ->
+	v3b6(conn, state)
     end
   end
   
@@ -222,7 +220,7 @@ defmodule Ewebmachine.Core do
   decision v3e5(conn, state) do
     case get_header_val(conn, "accept-charset") do
       nil ->
-	charset = choose_charset(conn, state, "*")
+	{charset, conn, state} = choose_charset(conn, state, "*")
 	if charset do
 	  v3f6(conn, state)
 	else
@@ -412,12 +410,11 @@ defmodule Ewebmachine.Core do
   
   ## "Moved permanently?"
   decision v3k5(conn, state) do
-    {reply, conn, state} = resource_call(conn, state, :moved_permanently)
-    case reply do
-      {true, moved_uri} ->
-	set_resp_header(conn, "location", moved_uri)
+    case resource_call(conn, state, :moved_permanently) do
+      {{true, moved_uri}, conn, state} ->
+	conn = set_resp_header(conn, "location", moved_uri)
 	respond(conn, state, 301)
-      false ->
+      {false, conn, state} ->
 	v3l5(conn, state)
     end
   end
@@ -448,12 +445,11 @@ defmodule Ewebmachine.Core do
   
   ## "Moved temporarily?"
   decision v3l5(conn, state) do
-    {moved, conn, state} = resource_call(conn, state, :moved_temporarily)
-    case moved do
-      {true, moved_uri} ->
-	set_resp_header(conn, "location", moved_uri)
+    case resource_call(conn, state, :moved_temporarily) do
+      {{true, moved_uri}, conn, state} ->
+	conn = set_resp_header(conn, "location", moved_uri)
 	respond(conn, state, 307)
-      false ->
+      {false, conn, state} ->
 	v3m5(conn, state)
     end
   end
@@ -574,7 +570,7 @@ defmodule Ewebmachine.Core do
   decision v3n11(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :post_is_create)
     if reply do
-      conn = accept_helper(conn, state)
+      {_, conn, state} = accept_helper(conn, state)
       {new_path, conn, state} = resource_call(conn, state, :create_path)
 
       if is_nil(new_path), do: raise "post_is_create w/o create_path"
@@ -600,7 +596,7 @@ defmodule Ewebmachine.Core do
       redirect_helper(conn, state)
     else
       {true, conn, state} = resource_call(conn, state, :process_post)
-      conn = encode_body_if_set(conn, state)
+      {_, conn, state} = encode_body_if_set(conn, state)
       redirect_helper(conn, state)
     end
   end
@@ -616,12 +612,11 @@ defmodule Ewebmachine.Core do
   
   ## "Conflict?"
   decision v3o14(conn, state) do
-    {conflict, conn, state} = resource_call(conn, state, :is_conflict)
-    case conflict do
-      true ->
+    case resource_call(conn, state, :is_conflict) do
+      {true, conn, state} ->
 	respond(conn, state, 409)
-      _ -> 
-        conn = accept_helper(conn, state)
+      {_, conn, state} -> 
+        {_, conn, state} = accept_helper(conn, state)
         v3p11(conn, state)
     end
   end
@@ -651,7 +646,8 @@ defmodule Ewebmachine.Core do
       {ct_provided, conn, state} = resource_call(conn, state, :content_types_provided)
       f = Enum.find_value(ct_provided, fn {t,f} -> normalize_mtype(t) == ct && f end)
       {body, conn, state} = resource_call(conn, state, f)
-      conn = set_resp_body(conn, encode_body(conn, state, body))
+      {body, conn, state} = encode_body(conn, state, body)
+      conn = set_resp_body(conn, body)
       v3o18b(conn, state)
     else
       v3o18b(conn, state)
@@ -682,7 +678,7 @@ defmodule Ewebmachine.Core do
     if reply do
       respond(conn, state, 409)
     else
-      conn = accept_helper(conn, state)
+      {_, conn, state} = accept_helper(conn, state)
       v3p11(conn, state)
     end
   end
@@ -704,10 +700,16 @@ defmodule Ewebmachine.Core do
     {enc_provided, conn, state} = resource_call(conn, state, :encodings_provided)
     accept = if length(ct_provided) < 2, do: [], else: ["Accept"]
     accept_enc = if length(enc_provided) < 2, do: [], else: ["Accept-Encoding"]
-    accept_char = case resource_call(conn, state, :charsets_provided) do
-		    {:no_charset, _, _} -> []
-		    {charset, _, _} -> if length(charset) < 2, do: [], else: ["Accept-Charset"]
-		  end
+    {accept_char, conn, state} = case resource_call(conn, state, :charsets_provided) do
+				   {:no_charset, c, s} ->
+				     {[], c, s}
+				   {charset, c, s} ->
+				     if length(charset) < 2 do
+				       {[], c, s}
+				     else
+				       {["Accept-Charset"], c, s}
+				     end
+				 end
     {variances, conn, state} = resource_call(conn, state, :variances)
     {accept ++ accept_enc ++ accept_char ++ variances, conn, state}
   end
@@ -734,33 +736,41 @@ defmodule Ewebmachine.Core do
   def encode_body_if_set(conn, state) do
     if has_resp_body(conn) do
       body = resp_body(conn)
-      set_resp_body(conn, encode_body(conn, state, body))
+      {body, conn, state} = encode_body(conn, state, body)
+      conn = set_resp_body(conn, body)
+      {:ok, conn, state}
     else
-      conn
+      {:ok, conn, state}
     end
   end
   
   def encode_body(conn, state, body) do
     chosen_cset = get_metadata(conn, :'chosen-charset')
-    charsetter = case resource_call(conn, state, :charsets_provided) do
-		   {:no_charset, _, _} -> &(&1)
-		   {cp, _, _} -> Enum.find_value(cp, fn {c,f} -> (to_string(c) == chosen_cset) && f end) || &(&1)
-		 end
+    {charsetter, conn, state} = case resource_call(conn, state, :charsets_provided) do
+				  {:no_charset, c, s} ->
+				    {&(&1), c, s}
+				  {cp, c, s} ->
+				    cs = Enum.find_value(cp, fn {c, f} ->
+				      (to_string(c) == chosen_cset) && f
+				    end) || &(&1)
+				    {cs, c, s}
+				end
     chosen_enc = get_metadata(conn, :'content-encoding')
-    {enc_provided, _, _} = resource_call(conn, state, :encodings_provided)
+    {enc_provided, conn, state} = resource_call(conn, state, :encodings_provided)
     encoder = Enum.find_value(enc_provided,
       fn {enc,f} -> (to_string(enc) == chosen_enc) && f end) || &(&1)
-    case body do
-      body when is_binary(body) or is_list(body) ->
-	body |> IO.iodata_to_binary |> charsetter.() |> encoder.()
-      _->
-	body |> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
-    end
+    body = case body do
+	     body when is_binary(body) or is_list(body) ->
+	       body |> IO.iodata_to_binary |> charsetter.() |> encoder.()
+	     _->
+	       body |> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
+	   end
+    {body, conn, state}
   end
   
   def choose_encoding(conn, state, acc_enc_hdr) do
-    {enc_provided, _, _} = resource_call(conn, state, :encodings_provided)
-    encs = for {enc,_} <- enc_provided, do: to_string(enc)
+    {enc_provided, conn, state} = resource_call(conn, state, :encodings_provided)
+    encs = for {enc, _} <- enc_provided, do: to_string(enc)
     chosen_enc = choose_encoding(encs, acc_enc_hdr)
     conn = if chosen_enc !== "identity" do
       set_resp_header(conn, "content-encoding", chosen_enc)
