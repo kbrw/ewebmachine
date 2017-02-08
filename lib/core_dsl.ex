@@ -206,33 +206,36 @@ defmodule Ewebmachine.Core.Utils do
   def choose_charset(charsets,acc_char_hdr), do:
     choose(charsets,acc_char_hdr,"utf8")
 
-  defp choose(choices,header,default) do
+  defp choose(choices, header, default) do
     ## sorted set of {prio,value}
     prios = prioritized_values(header)
 
     # determine if default is ok or any is ok if no match
-    default_prio = Enum.find_value(prios, fn {prio,v}-> v==default && prio end)
-    start_prio = Enum.find_value(prios, fn {prio,v}-> v=="*" && prio end)
+    default_prio = Enum.find_value(prios, fn {prio, v} -> v == default && prio end)
+    start_prio = Enum.find_value(prios, fn {prio, v} -> v == "*" && prio end)
     default_ok = case default_prio do
-      nil -> start_prio !== 0.0
-      0.0 -> false
-      _ -> true
-    end
-    any_ok = not start_prio in [nil,0.0]
+		   nil -> start_prio !== 0.0
+		   0.0 -> false
+		   _ -> true
+		 end
+    any_ok = not start_prio in [nil, 0.0]
 
     # remove choices where prio == 0.0
-    {zero_prios,prios} = Enum.partition(prios,fn {prio,_}-> prio == 0.0 end)
-    choices_to_remove = Enum.map(zero_prios,&elem(&1,1))
-    choices = Enum.filter(choices,&!(String.downcase(&1) in choices_to_remove))
+    {zero_prios, prios} = Enum.partition(prios, fn {prio, _} -> prio == 0.0 end)
+    choices_to_remove = Enum.map(zero_prios, &elem(&1, 1))
+    choices = Enum.filter(choices, &!(String.downcase(&1) in choices_to_remove))
 
-    # find first match, if not found and any_ok, then first choice, else if default_ok, take it
     if choices !== [] do
-      Enum.find_value(prios, fn {_,val}->
+      # find first match, if not found and any_ok, then first choice, else if default_ok, take it
+      Enum.find_value(prios, fn {_, val} ->
         Enum.find(choices, &(val == String.downcase(&1)))
-      end) ||
-        (any_ok && hd(choices) || 
-          (default_ok && Enum.find(choices,&(&1 == default)) || 
-            nil))
+      end)
+      || (any_ok && hd(choices)
+	|| (default_ok && Enum.find(choices, &(&1 == default))
+	  || nil))
+    else
+      # No proposed choice is acceptable by client
+      nil
     end
   end
 
