@@ -192,7 +192,7 @@ defmodule Ewebmachine.Core.Utils do
   - `acc_enc_hdr`, the HTTP header `Accept-Encoding`
   - `encs`, the list of supported encoding
   """
-  @spec choose_encoding([String.t],String.t) :: String.t
+  @spec choose_encoding([String.t],String.t) :: String.t | nil
   def choose_encoding(encs,acc_enc_hdr), do:
     choose(encs,acc_enc_hdr,"identity")
 
@@ -202,7 +202,7 @@ defmodule Ewebmachine.Core.Utils do
   - `acc_char_hdr`, the HTTP header `Accept-Charset`
   - `charsets`, the list of supported charsets
   """
-  @spec choose_charset([String.t],String.t) :: String.t
+  @spec choose_charset([String.t],String.t) :: String.t | nil
   def choose_charset(charsets,acc_char_hdr), do:
     choose(charsets,acc_char_hdr,"utf8")
 

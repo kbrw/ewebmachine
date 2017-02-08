@@ -221,13 +221,11 @@ defmodule Ewebmachine.Core do
     case get_header_val(conn, "accept-charset") do
       nil ->
 	{charset, conn, state} = choose_charset(conn, state, "*")
-	if charset do
-	  v3f6(conn, state)
-	else
-	  respond(conn, state, 406)
+	case charset do
+	  nil -> respond(conn, state, 406);
+	  _   -> v3f6(conn, state)
 	end
-      _ ->
-	v3e6(conn, state)
+      _ -> v3e6(conn, state)
     end
   end
   
@@ -235,10 +233,9 @@ defmodule Ewebmachine.Core do
   decision v3e6(conn, state) do
     accept = get_header_val(conn, "accept-charset")
     {charset, conn, state} = choose_charset(conn, state, accept)
-    if charset do
-      v3f6(conn, state)
-    else
-      respond(conn, state, 406)
+    case charset do
+      nil -> respond(conn, state, 406);
+      _   -> v3f6(conn, state)
     end
   end
   
@@ -252,13 +249,11 @@ defmodule Ewebmachine.Core do
     case get_header_val(conn, "accept-encoding") do
       nil ->
 	{encoding, conn, state} = choose_encoding(conn, state, "identity;q=1.0,*;q=0.5")
-	if encoding do
-	  v3g7(conn, state)
-	else
-	  respond(conn, state, 406)
+	case encoding do
+	  nil -> respond(conn, state, 406);
+	  _   -> v3g7(conn, state)
 	end
-      _ ->
-	v3f7(conn, state)
+      _ -> v3f7(conn, state)
     end
   end
   
@@ -266,10 +261,9 @@ defmodule Ewebmachine.Core do
   decision v3f7(conn, state) do
     accept = get_header_val(conn, "accept-encoding")
     {encoding, conn, state} = choose_encoding(conn, state, accept)
-    if encoding do
-      v3g7(conn, state)
-    else
-      respond(conn, state, 406)
+    case encoding do
+      nil -> respond(conn, state, 406);
+      _   -> v3g7(conn, state)
     end
   end
   
