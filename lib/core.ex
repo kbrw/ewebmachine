@@ -717,12 +717,12 @@ defmodule Ewebmachine.Core do
     mtfun = Enum.find_value(ct_accepted, fn {accept,f} ->
       fuzzy_mt_match(ct,normalize_mtype(accept)) && f
     end)
-      
+
     if mtfun do
       {_reply, conn, state} = resource_call(conn, state, mtfun)
       encode_body_if_set(conn, state)
     else
-      respond(conn, state, 415)
+      {_, conn, _} = respond(conn, state, 415)
       throw {:halt, conn}
     end
   end
