@@ -12,7 +12,8 @@ defmodule Ewebmachine.Mixfile do
       deps: [
         {:plug, "~> 1.0"},
         {:cowboy, "~> 1.0", optional: true},
-        {:ex_doc, ">= 0.0.0", only: :dev}
+        {:ex_doc, ">= 0.0.0", only: :dev},
+	{:dialyxir, "~> 0.4", only: [:dev], runtime: false}
       ],
 
       description: """
