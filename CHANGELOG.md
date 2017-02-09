@@ -1,5 +1,11 @@
 # Changelog
 
+## ->v2.1.3
+
+* Bug fixes
+  * make it compatible with elixir 1.4 without warnings
+  * fix related regression
+
 ## v2.0.9
 
 * Bug fixes
