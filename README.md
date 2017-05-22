@@ -3,11 +3,11 @@ based on Webmachine from basho. This version is not backward compatible with
 the previous one that was only a thin wrapper around webmachine, use the branch
 1.0-legacy to use the old one.
 
-[![Build Status](https://travis-ci.org/awetzel/ewebmachine.svg?branch=master)](https://travis-ci.org/awetzel/ewebmachine)
+[![Build Status](https://travis-ci.org/kbrw/ewebmachine.svg?branch=master)](https://travis-ci.org/kbrw/ewebmachine)
 
 See the [generated documentation](http://hexdocs.pm/ewebmachine) for more detailed explanations.
 
-The principle is to go through the [HTTP decision tree](https://raw.githubusercontent.com/awetzel/ewebmachine/master/doc/http_diagram.png)
+The principle is to go through the [HTTP decision tree](https://raw.githubusercontent.com/kbrw/ewebmachine/master/doc/http_diagram.png)
 and make decisions according to response of some callbacks called "handlers".
 
 To do that, the library gives you 5 plugs and 2 plug pipeline builders :
@@ -94,7 +94,7 @@ Go to `/wm_debug` to see precedent requests and debug there HTTP
 decision path. The debug UI can be updated automatically on the
 requests.
 
-![Debug UI example](https://raw.githubusercontent.com/awetzel/ewebmachine/master/doc/debug_ui.png)
+![Debug UI example](https://raw.githubusercontent.com/kbrw/ewebmachine/master/doc/debug_ui.png)
 
 ## Use Cowboy to serve the plug
 
