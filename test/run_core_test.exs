@@ -2,7 +2,7 @@ Code.require_file "test_helper.exs", __DIR__
 
 defmodule CommonMacros do
   defmacro resources([do: body]) do 
-    name = :"#{inspect make_ref}"
+    name = :"#{inspect make_ref()}"
     quote do
       defmodule unquote(name) do
         use Ewebmachine.Builder.Resources

@@ -102,7 +102,7 @@ defmodule Ewebmachine.Builder.Handlers do
 
   defp handler_quote(name,body,guard,conn_match,state_match) do
     quote do
-      @resource_handlers Dict.put(@resource_handlers,unquote(name),__MODULE__)
+      @resource_handlers Map.put(@resource_handlers,unquote(name),__MODULE__)
       def unquote(name)(unquote(conn_match)=var!(conn),unquote(state_match)=var!(state)) when unquote(guard) do
         res = unquote(body)
         wrap_response(res,var!(conn),var!(state))

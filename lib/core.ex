@@ -244,7 +244,7 @@ defmodule Ewebmachine.Core do
   decision v3f6(conn, state) do
     {type, subtype, params} = get_metadata(conn, :'content-type')
     char = get_metadata(conn, :'chosen-charset')
-    params = char && Dict.put(params, :charset, char) || params
+    params = char && Map.put(params, :charset, char) || params
     conn = set_resp_header(conn, "content-type", format_mtype({type,subtype,params}))
     case get_header_val(conn, "accept-encoding") do
       nil ->

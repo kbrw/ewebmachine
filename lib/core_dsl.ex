@@ -155,7 +155,7 @@ defmodule Ewebmachine.Core.Utils do
     accepts = accept_header |> Plug.Conn.Utils.list |> Enum.map(fn "*"->"*/*";e->e end) |>  Enum.map(&Plug.Conn.Utils.media_type/1)
     accepts = for {:ok,type,subtype,params}<-accepts do 
       q = case Float.parse(params["q"] || "1") do {q,_}->q ; _ -> 1 end
-      {q,type,subtype,Dict.delete(params,"q")}
+      {q,type,subtype,Map.delete(params,"q")}
     end |> Enum.sort |> Enum.reverse
     Enum.find_value(accepts,fn {_,atype,asubtype,aparams}->
       Enum.find(ct_provided, fn {type,subtype,params}->

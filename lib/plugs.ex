@@ -32,7 +32,7 @@ defmodule Ewebmachine.Plug.Run do
         Ewebmachine.Log.put(conn)
         GenEvent.notify(Ewebmachine.Events,log)
       end
-      %{conn | private: Dict.drop(conn.private,
+      %{conn | private: Map.drop(conn.private,
 	   [:machine_init,:resource_handlers,:machine_decisions,:machine_calls,:machine_log,:machine_init_at]
 	 )
       }
@@ -125,7 +125,7 @@ defmodule Ewebmachine.Plug.Debug do
 
   get "/wm_debug/events" do
     conn=conn |> put_resp_header("content-type", "text/event-stream") |> send_chunked(200)
-    GenEvent.add_mon_handler(Ewebmachine.Events,{__MODULE__.EventHandler,make_ref},conn)
+    GenEvent.add_mon_handler(Ewebmachine.Events,{__MODULE__.EventHandler,make_ref()},conn)
     receive do {:gen_event_EXIT,_,_} -> halt(conn) end
   end
 

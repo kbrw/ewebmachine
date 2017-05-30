@@ -33,13 +33,13 @@ defmodule Ewebmachine.Log do
   def get(id), do: 
     (case :ets.lookup(:logs,id) do [{_,conn}]->conn; _->nil end)
   def id, do:
-    (make_ref |> :erlang.term_to_binary |> Base.url_encode64)
+    (make_ref() |> :erlang.term_to_binary |> Base.url_encode64)
 
   # Conn modifiers called by automate during run
   def debug_init(conn) do
     if conn.private[:machine_debug] do
       conn
-      |> Conn.put_private(:machine_log,id)
+      |> Conn.put_private(:machine_log,id())
       |> Conn.put_private(:machine_init_at,:erlang.timestamp)
       |> Conn.put_private(:machine_decisions,[])
       |> Conn.put_private(:machine_calls,[])

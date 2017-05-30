@@ -3,7 +3,7 @@ defmodule Ewebmachine.Mixfile do
 
   def project do
     [ app: :ewebmachine,
-      version: "2.1.2",
+      version: "2.1.3",
       docs: [
         main: "Ewebmachine",
         source_url: "https://github.com/awetzel/ewebmachine",
@@ -13,7 +13,7 @@ defmodule Ewebmachine.Mixfile do
         {:plug, "~> 1.0"},
         {:cowboy, "~> 1.0", optional: true},
         {:ex_doc, ">= 0.0.0", only: :dev},
-	{:dialyxir, "~> 0.4", only: [:dev], runtime: false}
+        {:dialyxir, "~> 0.4", only: [:dev], runtime: false}
       ],
 
       description: """
@@ -22,7 +22,7 @@ defmodule Ewebmachine.Mixfile do
         your HTTP response. This project is a rewrite for Elixir and
         Plug of basho webmachine.
       """,
-      package: [links: %{"Source"=>"http://github.com/awetzel/ewebmachine",
+      package: [links: %{"Source"=>"http://github.com/kbrw/ewebmachine",
                          "Doc"=>"http://hexdocs.pm/ewebmachine"},
                 maintainers: ["Arnaud Wetzel", "Yurii Rashkovskii"],
                 licenses: ["MIT"],
