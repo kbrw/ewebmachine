@@ -83,6 +83,21 @@ defmodule Hello do
       end
     end    
     
+    resource "/new_with_redirect" do %{} after 
+      plug ApiCommon #this is also a plug pipeline
+      allowed_methods do: ["POST"]
+      content_types_accepted do: ['application/json': :from_json]
+      post_is_create do: true
+      defh create_path(conn, state), do: {state.newpath, conn, state}
+      defh from_json do
+	value = conn |> Ewebmachine.fetch_req_body([]) |> Ewebmachine.req_body |> Poison.decode!
+	newpath = "#{:io_lib.format("~9..0b", [:rand.uniform(999999999)])}"
+	_ = Hello.Db.put(value["id"], value)
+	conn = Plug.Conn.put_private(conn, :resp_redirect, true)
+	{true, conn, state |> Map.put(:newpath, newpath)}
+      end
+    end    
+
     resource "/static/*path" do %{path: Enum.join(path, "/")} after
       resource_exists do: File.regular?(path(state.path))
       content_types_provided do: [ {state.path |> Plug.MIME.path |> default_plain, :to_content} ]
