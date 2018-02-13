@@ -314,6 +314,14 @@ defmodule Ewebmachine.Builder.Resources do
 
   ```
   resource "/my/route/:commaid" do
+    id = string.split(commaid,",")
+    %{foo: id}
+  after
+    plug someadditionnalplug
+    resource_exists do: state.id == ["hello"]
+  end
+
+  resource ShortenedRouteName, "/my/route/that/would/generate/a/long/module/name/:commaid" do
     id = String.split(commaid,",")
     %{foo: id}
   after
@@ -323,10 +331,16 @@ defmodule Ewebmachine.Builder.Resources do
   ```
     
   """
+  defmacro resource({:__aliases__, _, route_aliases},route,do: init_block, after: body) do
+    resource_quote(Module.concat([__CALLER__.module|route_aliases]),route,init_block,body,__CALLER__.module)
+  end
   defmacro resource(route,do: init_block, after: body) do
-    wm_module = Module.concat(__CALLER__.module,"EWM"<>route_as_mod(route))
-    old_wm_routes = Module.get_attribute(__CALLER__.module, :wm_routes) || []
-    Module.put_attribute __CALLER__.module, :wm_routes, [{route,wm_module,init_block}|old_wm_routes]
+    resource_quote(Module.concat(__CALLER__.module,"EWM"<>route_as_mod(route)),route,init_block,body,__CALLER__.module)
+  end
+
+  def resource_quote(wm_module,route,init_block,body,caller_module) do
+    old_wm_routes = Module.get_attribute(caller_module, :wm_routes) || []
+    Module.put_attribute caller_module, :wm_routes, [{route,wm_module,init_block}|old_wm_routes]
     quote do
       defmodule unquote(wm_module) do
         use Ewebmachine.Builder.Handlers
