@@ -260,10 +260,10 @@ defmodule Ewebmachine.Builder.Resources do
   """
   defmacro __using__(opts) do
     quote location: :keep do
+      @before_compile Ewebmachine.Builder.Resources
       use Plug.Router
       import Plug.Router, only: []
       import Ewebmachine.Builder.Resources
-      @before_compile Ewebmachine.Builder.Resources
       if unquote(opts[:default_plugs]) do
         plug :resource_match
         plug Ewebmachine.Plug.Run
