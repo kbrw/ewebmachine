@@ -4,3 +4,6 @@ notifications:
     - arnaud.wetzel@kbrwadventure.com
 elixir:
   - '1.3.4'
+  - '1.4.5'
+  - '1.5.2'
+  - '1.6.3'
