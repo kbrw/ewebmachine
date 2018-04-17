@@ -3,7 +3,7 @@ defmodule Ewebmachine.Mixfile do
 
   def project do
     [ app: :ewebmachine,
-      version: "2.1.4",
+      version: "2.1.5",
       docs: [
         main: "Ewebmachine",
         source_url: "https://github.com/awetzel/ewebmachine",
@@ -24,7 +24,7 @@ defmodule Ewebmachine.Mixfile do
       """,
       package: [links: %{"Source"=>"http://github.com/kbrw/ewebmachine",
                          "Doc"=>"http://hexdocs.pm/ewebmachine"},
-                maintainers: ["Arnaud Wetzel", "Yurii Rashkovskii"],
+                maintainers: ["Arnaud Wetzel", "Yurii Rashkovskii", "Jean Parpaillon"],
                 licenses: ["MIT"],
                 files: ["lib", "priv", "mix.exs", "README*", "templates", "LICENSE*"]]]
   end

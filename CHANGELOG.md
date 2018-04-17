@@ -1,6 +1,15 @@
 # Changelog
 
-## ->v2.1.3
+## v2.1.5
+
+* Fix
+  * Compilation with Plulg > 1.5 (https://github.com/kbrw/ewebmachine/issues/38)
+
+## v2.1.4
+
+* Feature: allow to name resources modules
+
+## v2.1.3
 
 * Bug fixes
   * make it compatible with elixir 1.4 without warnings
