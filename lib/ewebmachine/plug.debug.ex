@@ -31,15 +31,17 @@ defmodule Ewebmachine.Plug.Debug do
   ![Debug UI example](debug_ui.png)
   """
   use Plug.Router
+  
   alias Plug.Conn
   alias Ewebmachine.Log
+  
   plug Plug.Static, at: "/wm_debug/static", from: :ewebmachine
   plug :match
   plug :dispatch
 
   require EEx
   EEx.function_from_file :defp, :render_logs, "templates/log_list.html.eex", [:conns]
-  EEx.function_from_file :defp, :render_log, "templates/log_view.html.eex", [:logconn,:conn]
+  EEx.function_from_file :defp, :render_log, "templates/log_view.html.eex", [:logconn, :conn]
 
   get "/wm_debug/log/:id" do
     if (logconn=Log.get(id)) do

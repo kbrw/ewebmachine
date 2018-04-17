@@ -41,6 +41,6 @@ defmodule Ewebmachine.Mixfile do
               "Doc" => "http://hexdocs.pm/ewebmachine" },
     maintainers: ["Arnaud Wetzel", "Yurii Rashkovskii", "Jean Parpaillon"],
     licenses: ["MIT"],
-    files: ["lib", "priv", "mix.exs", "README*", "templates", "LICENSE*"]
+    files: ["lib", "priv", "mix.exs", "README*", "templates", "LICENSE*", "CHANGELOG*", "examples"]
   ]
 end

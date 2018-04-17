@@ -20,21 +20,24 @@ defmodule Ewebmachine.Plug.Run do
 
     A successfull run will reset the resource handlers and initial state.
   """
+
+  @doc false
   def init(_opts), do: []
-  
+
+  @doc false
   def call(conn, _opts) do
     init = conn.private[:machine_init]
     if (init) do
-      conn = Ewebmachine.Core.v3(conn,init)
+      conn = Ewebmachine.Core.v3(conn, init)
       log = conn.private[:machine_log]
       if (log) do
         Ewebmachine.Log.put(conn)
-        GenEvent.notify(Ewebmachine.Events,log)
+        GenEvent.notify(Ewebmachine.Events, log)
       end
-      %{conn | private: Map.drop(conn.private,
-	   [:machine_init,:resource_handlers,:machine_decisions,:machine_calls,:machine_log,:machine_init_at]
-	 )
-      }
+      private = Map.drop(conn.private, [
+	    :machine_init, :resource_handlers, :machine_decisions, :machine_calls, :machine_log, :machine_init_at
+	  ])
+      %{ conn | private: private }
     else
       conn
     end

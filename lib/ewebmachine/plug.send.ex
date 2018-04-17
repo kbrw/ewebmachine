@@ -4,8 +4,11 @@ defmodule Ewebmachine.Plug.Send do
   pipeline if the `conn` has passed through an `Ewebmachine.Plug.Run`.
   """
   import Plug.Conn
+
+  @doc false
   def init(_opts), do: []
-  
+
+  @doc false
   def call(conn, _opts) do
     if conn.state == :set do
       stream = conn.private[:machine_body_stream]
@@ -15,7 +18,7 @@ defmodule Ewebmachine.Plug.Send do
         conn
       else
         send_resp(conn)
-      end |> halt
+      end |> halt()
     else
       conn
     end
