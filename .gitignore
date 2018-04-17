@@ -9,3 +9,4 @@ erl_crash.dump
 .#*
 *.swp
 _build
+mix.lock
