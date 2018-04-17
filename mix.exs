@@ -10,7 +10,7 @@ defmodule Ewebmachine.Mixfile do
 
   def project, do: [
     app: :ewebmachine,
-    version: "2.1.5",
+    version: "2.2.0",
     docs: docs(),
     deps: deps(),
     description: @description,
