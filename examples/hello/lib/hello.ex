@@ -4,7 +4,7 @@ defmodule Hello do
     
     def start(_type, _args) do
       Supervisor.start_link([
-	Plug.Adapters.Cowboy.child_spec(:http, Hello.Api,[], port: 4000),
+	Plug.Adapters.Cowboy2.child_spec(scheme: :http, plug: Hello.Api, options: [port: 4000]),
 	Supervisor.Spec.worker(Hello.Db, [])
       ], strategy: :one_for_one)
     end
