@@ -34,7 +34,7 @@ defmodule Ewebmachine.Mixfile do
     {:plug, ">= 1.0.0"},
     {:cowboy, ">= 1.0.0", optional: true},
     {:ex_doc, ">= 0.0.0", only: :dev},
-    {:dialyxir, "~> 0.4", only: [:dev], runtime: false}
+    {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
   ]
 
   defp package, do: [
