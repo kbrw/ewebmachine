@@ -19,7 +19,6 @@ defmodule Ewebmachine.Mixfile do
   ]
 
   def application, do: [
-    applications: [:plug],
     mod: { Ewebmachine.App, [] },
     env: []
   ]
