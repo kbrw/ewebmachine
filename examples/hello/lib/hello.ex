@@ -23,46 +23,40 @@ defmodule Hello do
     plug :add_handlers
     
     content_types_provided do: ["application/json": :to_json]
-    defh to_json, do: Poison.encode!(state[:json_obj])
+    defh to_json(conn, state), do: {Poison.encode!(state[:json_obj]), conn, state}
     
     defp cors(conn, _) do
       put_resp_header(conn, "Access-Control-Allow-Origin", "*")
     end
   end
   
-  defmodule ErrorRoutes do
-    use Ewebmachine.Builder.Resources
-    resources_plugs
-    
-    resource "/error/:status" do %{s: elem(Integer.parse(status), 0)} after 
-      content_types_provided do: ['text/html': :to_html, 'application/json': :to_json]
-      defh to_html, do: "<h1> Error ! : '#{Ewebmachine.Core.Utils.http_label(state.s)}'</h1>"
-      defh to_json, do: ~s/{"error": #{state.s}, "label": "#{Ewebmachine.Core.Utils.http_label(state.s)}"}/
-      finish_request do: {:halt, state.s}
-    end
-  end
-
   defmodule Api do
     use Ewebmachine.Builder.Resources
     plug Ewebmachine.Plug.Debug
-    resources_plugs error_forwarding: "/error/:status", nomatch_404: true
-    plug Hello.ErrorRoutes
+
+    resources_plugs nomatch_404: true
     
     resource "/hello/:name" do %{name: name} after 
       content_types_provided do: ['application/xml': :to_xml]
-      defh to_xml, do: "<Person><name>#{state.name}</name>"
+      defh to_xml(conn, state), do: {"<Person><name>#{state.name}</name>", conn, state}
     end
     
     resource "/hello/json/:name" do %{name: name} after 
-      plug ApiCommon #this is also a plug pipeline
+      plug ApiCommon # this is also a plug pipeline
+      
       allowed_methods do: ["GET", "PUT", "DELETE"]
       content_types_accepted do: ['application/json': :from_json]
-      resource_exists do
-	user = Hello.Db.get(state.name)	
-	pass(user !== nil, json_obj: user)
+
+      defh resource_exists(conn, state) do
+	case Hello.Db.get(state.name) do
+	  nil -> {false, conn, state}
+	  user -> {true, conn, Map.put(state, :json_obj, user)}
+	end
       end
-      delete_resource do: Hello.Db.delete(state.name)
-      defh from_json do
+
+      defh delete_resource(conn, state), do: {Hello.Db.delete(state.name), conn, state}
+      
+      defh from_json(conn, state) do
 	value = conn |> Ewebmachine.fetch_req_body([]) |> Ewebmachine.req_body |> Poison.decode!
 	_ = Hello.Db.put(state.name, value)
 	{true, conn, state}
@@ -71,38 +65,50 @@ defmodule Hello do
 
     resource "/new" do %{} after 
       plug ApiCommon #this is also a plug pipeline
+      
       allowed_methods do: ["POST"]
       content_types_accepted do: ['application/json': :from_json]
       post_is_create do: true
+
       defh create_path(conn, state), do: {state.newpath, conn, state}
-      defh from_json do
-	value = conn |> Ewebmachine.fetch_req_body([]) |> Ewebmachine.req_body |> Poison.decode!
+      
+      defh from_json(conn, state) do
+	value = conn |> Ewebmachine.fetch_req_body([]) |> Ewebmachine.req_body() |> Poison.decode!()
 	newpath = "#{:io_lib.format("~9..0b", [:rand.uniform(999999999)])}"
 	_ = Hello.Db.put(value["id"], value)
-	{true, conn, state |> Map.put(:newpath, newpath)}
+	{true, conn, Map.put(state, :newpath, newpath)}
       end
     end    
     
     resource "/new_with_redirect" do %{} after 
       plug ApiCommon #this is also a plug pipeline
+      
       allowed_methods do: ["POST"]
       content_types_accepted do: ['application/json': :from_json]
       post_is_create do: true
+      
       defh create_path(conn, state), do: {state.newpath, conn, state}
-      defh from_json do
-	value = conn |> Ewebmachine.fetch_req_body([]) |> Ewebmachine.req_body |> Poison.decode!
+      
+      defh from_json(conn, state) do
+	value = conn |> Ewebmachine.fetch_req_body([]) |> Ewebmachine.req_body() |> Poison.decode!()
 	newpath = "#{:io_lib.format("~9..0b", [:rand.uniform(999999999)])}"
 	_ = Hello.Db.put(value["id"], value)
 	conn = Plug.Conn.put_private(conn, :resp_redirect, true)
-	{true, conn, state |> Map.put(:newpath, newpath)}
+	{true, conn, Map.put(state, :newpath, newpath)}
       end
     end    
 
     resource "/static/*path" do %{path: Enum.join(path, "/")} after
       resource_exists do: File.regular?(path(state.path))
-      content_types_provided do: [ {state.path |> Plug.MIME.path |> default_plain, :to_content} ]
-      defh to_content, do: File.stream!( path(state.path), [], 300_000_000)
+      content_types_provided do: [ {state.path |> Plug.MIME.path() |> default_plain, :to_content} ]
+      
+      defh to_content(conn, state) do
+	body = File.stream!( path(state.path), [], 300_000_000)
+	{body, conn, state}
+      end
+      
       defp path(relative), do: "#{:code.priv_dir(:ewebmachine)}/static/#{relative}"
+
       defp default_plain("application/octet-stream"), do: "text/plain"
       defp default_plain(type), do: type
     end
