@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.2
+
+* Code janitoring wrt elixir versions: supports 1.3 - 1.6
+* Validated against Cowboy 1 & 2
+
 ## v2.1.5
 
 * Fix
