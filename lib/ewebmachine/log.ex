@@ -9,9 +9,9 @@ defmodule Ewebmachine.Log do
     (:ets.insert(:logs,{conn.private[:machine_log],conn}); {:noreply,[]})
 
   # Public API, self describing
-  def start_link, do: 
+  def start_link(_), do: 
     GenServer.start_link(__MODULE__,[], name: __MODULE__)
-  def put(conn), do: 
+  def put(conn), do:
     GenServer.cast(__MODULE__,conn)
   def list do # fold only needed file for log listing for perfs
     :ets.foldl(fn {_,%{method: m, request_path: path, path_info: pi, private: %{machine_log: l, machine_init_at: i}}},acc-> 
