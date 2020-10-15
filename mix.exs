@@ -31,8 +31,8 @@ defmodule Ewebmachine.Mixfile do
   ]
 
   defp deps, do: [
-    {:plug, ">= 1.0.0"},
-    {:cowboy, ">= 1.0.0", optional: true},
+    {:plug, "~> 1.10"},
+    {:plug_cowboy, "~> 2.4", optional: true},
     {:ex_doc, ">= 0.0.0", only: :dev},
     {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
   ]
