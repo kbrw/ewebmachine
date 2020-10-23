@@ -8,7 +8,7 @@ defmodule Ewebmachine.Core.Utils do
   @doc """
   Convert any content type representation (see spec) into a `norm_content_type`
   """
-  @spec normalize_mtype({type :: String.t, params :: map} | type :: String.t | norm_content_type) :: norm_content_type
+  @spec normalize_mtype({type :: String.t, params :: map} | (type :: String.t) | norm_content_type) :: norm_content_type
   def normalize_mtype({type, params}) do
     case String.split(type, "/") do
       [type, subtype] -> {type, subtype, params}
@@ -196,7 +196,7 @@ defmodule Ewebmachine.Core.Utils do
 		   0.0 -> false
 		   _ -> true
 		 end
-    any_ok = not start_prio in [nil, 0.0]
+    any_ok = start_prio not in [nil, 0.0]
 
     # remove choices where prio == 0.0
     {zero_prios, prios} = Compat.Enum.split_with(prios, fn {prio, _} -> prio == 0.0 end)

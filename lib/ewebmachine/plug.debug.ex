@@ -57,34 +57,11 @@ defmodule Ewebmachine.Plug.Debug do
   end
 
   get "/wm_debug/events" do
-    conn = conn |>
-      put_resp_header("content-type", "text/event-stream") |>
-      send_chunked(200)
-    :gen_event.add_sup_handler(Ewebmachine.Events, {__MODULE__.EventHandler, make_ref()}, conn)
-    receive do
-      {:gen_event_EXIT, _, _} -> halt(conn)
-    end
+    Ewebmachine.Events.stream_chunks(conn)
   end
 
   match _ do
     put_private(conn, :machine_debug, true)
-  end
-
-  defmodule EventHandler do
-    @moduledoc false
-    @behaviour :gen_event
-
-    @doc false
-    def init(conn), do: {:ok, conn}
-
-    @doc false
-    def handle_event(log_id, conn) do #Send all builder events to browser through SSE
-      Plug.Conn.chunk(conn, "event: new_query\ndata: #{log_id}\n\n")
-      {:ok, conn}
-    end
-
-    @doc false
-    def handle_call(_call, conn), do: {:ok, :ok, conn}
   end
 
   @doc false

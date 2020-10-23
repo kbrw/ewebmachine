@@ -10,8 +10,8 @@ defmodule Ewebmachine.Mixfile do
 
   def project, do: [
     app: :ewebmachine,
-    elixir: ">= 1.3.4",
-    version: "2.2.0",
+    elixir: ">= 1.10.0",
+    version: "2.3.0",
     docs: docs(),
     deps: deps(),
     description: @description,
@@ -20,6 +20,7 @@ defmodule Ewebmachine.Mixfile do
 
   def application, do: [
     mod: { Ewebmachine.App, [] },
+    extra_applications: [:inets],
     env: []
   ]
 
@@ -30,8 +31,8 @@ defmodule Ewebmachine.Mixfile do
   ]
 
   defp deps, do: [
-    {:plug, ">= 1.0.0"},
-    {:cowboy, ">= 1.0.0", optional: true},
+    {:plug, "~> 1.10"},
+    {:plug_cowboy, "~> 2.4", optional: true},
     {:ex_doc, ">= 0.0.0", only: :dev},
     {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
   ]

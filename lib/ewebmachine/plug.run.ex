@@ -32,7 +32,7 @@ defmodule Ewebmachine.Plug.Run do
       log = conn.private[:machine_log]
       if (log) do
         Ewebmachine.Log.put(conn)
-        :gen_event.notify(Ewebmachine.Events, log)
+        Ewebmachine.Events.dispatch(log)
       end
       private = Map.drop(conn.private, [
 	    :machine_init, :resource_handlers, :machine_decisions, :machine_calls, :machine_log, :machine_init_at
