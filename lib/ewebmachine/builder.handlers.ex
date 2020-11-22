@@ -69,10 +69,10 @@ defmodule Ewebmachine.Builder.Handlers do
   defmacro __before_compile__(_env) do
     quote do
       defp add_handlers(conn, opts) do
-	init = opts[:init]
-        conn = if opts && init,
-	  do: put_private(conn, :machine_init, init),
-	  else: conn
+        conn = case Access.fetch(opts, :init) do
+          {:ok, init} when not (init in [false, nil]) -> put_private(conn, :machine_init, init)
+          _ -> conn
+        end
         Plug.Conn.put_private(conn, :resource_handlers,
           Enum.into(@resource_handlers, conn.private[:resource_handlers] || %{}))
       end
