@@ -119,3 +119,9 @@ end
 defp deps, do:
   [{:ewebmachine, "2.0.0"}, {:cowboy, "~> 1.0"}]
 ```
+
+# CONTRIBUTING
+
+Hi, and thank you for wanting to contribute.
+Please refer to the centralized informations available at: https://github.com/kbrw#contributing
+
