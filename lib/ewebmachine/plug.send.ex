@@ -12,13 +12,22 @@ defmodule Ewebmachine.Plug.Send do
   def call(conn, _opts) do
     if conn.state == :set do
       stream = conn.private[:machine_body_stream]
-      if (stream) do
-        conn = send_chunked(conn,conn.status)
-        Enum.each(stream,&chunk(conn,&1))
-        conn
-      else
-        send_resp(conn)
-      end |> halt()
+      conn =
+        if stream do
+          conn = send_chunked(conn,conn.status)
+          conn = Enum.reduce_while(stream, conn, fn chunk, conn ->
+            case Plug.Conn.chunk(conn, chunk) do
+              {:ok, conn} ->
+                {:cont, conn}
+              {:error, :closed} ->
+                {:halt, conn}
+            end
+          end)
+          conn
+        else
+          send_resp(conn)
+        end
+      halt(conn)
     else
       conn
     end
