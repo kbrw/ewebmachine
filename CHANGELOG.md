@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+* `Ewebmachine.Plug.Send.call` now threads the `conn` struct to keep the updates instead of reusing the original one.
+
 ## v2.2
 
 * Code janitoring wrt elixir versions: supports 1.3 - 1.6
