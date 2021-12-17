@@ -1,10 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [2.3.1] (2021-12-17)
 
 ### Changed
 
 * `Ewebmachine.Plug.Send.call` now threads the `conn` struct to keep the updates instead of reusing the original one.
+* `Ewebmachine.Builder.Handles.add.add_handlers/2`: internal changes to satisfy dialyzer.
 
 ## v2.2
 
@@ -96,3 +97,6 @@
 
 * Bug fixes
   * Makes `{:halt,code}` management works correctly.
+
+
+[2.3.1]: https://github.com/kbrw/ewebmachine/compare/v2.3.0...v2.3.1
