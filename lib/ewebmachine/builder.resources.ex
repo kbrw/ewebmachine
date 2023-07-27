@@ -22,7 +22,7 @@ defmodule Ewebmachine.Builder.Resources do
     plug Ewebmachine.Plug.Send
     # plug after that will be executed only if no ewebmachine resources has matched
 
-    resource "/hello/:name" do %{name: name} after 
+    resource "/hello/:name" do %{name: name} after
       plug SomeAdditionnalPlug
       content_types_provided do: ['application/xml': :to_xml]
       defh to_xml, do: "<Person><name>#{state.name}</name>"
@@ -55,7 +55,7 @@ defmodule Ewebmachine.Builder.Resources do
       resources_plugs error_as_exception: true, nomatch_404: true
 
   is equivalent to
-  
+
       plug :resource_match
       plug Ewebmachine.Plug.Run
       plug :wm_notset_404
@@ -84,6 +84,9 @@ defmodule Ewebmachine.Builder.Resources do
       use Plug.Router
       import Plug.Router, only: []
       import Ewebmachine.Builder.Resources
+
+      Module.register_attribute(__MODULE__, :wm_routes, accumulate: true)
+
       if unquote(opts[:default_plugs]) do
         plug :resource_match
         plug Ewebmachine.Plug.Run
@@ -107,7 +110,7 @@ defmodule Ewebmachine.Builder.Resources do
         end
       end
     end
-    final_match = if !match?({"/*"<>_,_,_},hd(wm_routes)), 
+    final_match = if !match?({"/*"<>_,_,_},hd(wm_routes)),
       do: quote(do: Plug.Router.match _ do var!(conn) end)
     quote do
       unquote_splicing(route_matches)
@@ -121,9 +124,9 @@ defmodule Ewebmachine.Builder.Resources do
 
   defp route_as_mod(route), do:
     (route |> String.split("/") |> Enum.map(& &1 |> remove_first |> String.capitalize) |> Enum.join)
-  
+
   @doc ~S"""
-  Create a webmachine handler plug and use it on `:resource_match` when path matches 
+  Create a webmachine handler plug and use it on `:resource_match` when path matches
 
   - the route will be the matching spec (see Plug.Router.match, string spec only)
   - do_block will be called on match (so matching bindings will be
@@ -149,19 +152,19 @@ defmodule Ewebmachine.Builder.Resources do
     resource_exists do: state.id == ["hello"]
   end
   ```
-    
+
   """
   defmacro resource({:__aliases__, _, route_aliases},route,do: init_block, after: body) do
-    resource_quote(Module.concat([__CALLER__.module|route_aliases]),route,init_block,body,__CALLER__.module)
+    resource_quote(Module.concat([__CALLER__.module|route_aliases]),route,init_block,body)
   end
   defmacro resource(route,do: init_block, after: body) do
-    resource_quote(Module.concat(__CALLER__.module,"EWM"<>route_as_mod(route)),route,init_block,body,__CALLER__.module)
+    resource_quote(Module.concat(__CALLER__.module,"EWM"<>route_as_mod(route)),route,init_block,body)
   end
 
-  def resource_quote(wm_module,route,init_block,body,caller_module) do
-    old_wm_routes = Module.get_attribute(caller_module, :wm_routes) || []
-    Module.put_attribute caller_module, :wm_routes, [{route,wm_module,init_block}|old_wm_routes]
+  def resource_quote(wm_module,route,init_block,body) do
     quote do
+      @wm_routes {unquote(route), unquote(wm_module), unquote(Macro.escape(init_block))}
+
       defmodule unquote(wm_module) do
         use Ewebmachine.Builder.Handlers
         unquote(body)
