@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.2] (2023-08-04)
+
+### Changed
+
+* Corrected the declaration of routes with plug when conditionaly removing declared resource.
+  (eg. Surrounding a `resource` with an if.)
+
 ## [2.3.1] (2021-12-17)
 
 ### Changed
