@@ -1,7 +1,0 @@
-language: elixir
-notifications:
-  recipients:
-    - arnaud.wetzel@kbrwadventure.com
-elixir:
-  - '1.10.0'
-  - '1.11.0'

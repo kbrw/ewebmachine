@@ -1,11 +1,9 @@
+# Ewebmachine [![Build Status](https://github.com/kbrw/ewebmachine/actions/workflows/.github/workflows/build-and-test.yml/badge.svg)](https://github.com/kbrw/ewebmachine/actions/workflows/build-and-test.yml) [![Hex.pm](https://img.shields.io/hexpm/v/ewebmachine.svg)](https://hex.pm/packages/ewebmachine) [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/ewebmachine) ![Hex.pm License](https://img.shields.io/hexpm/l/ewebmachine)
+
 Ewebmachine is a full rewrite with clean DSL and plug integration
 based on Webmachine from basho. This version is not backward compatible with
 the previous one that was only a thin wrapper around webmachine, use the branch
 1.0-legacy to use the old one.
-
-[![Build Status](https://travis-ci.org/kbrw/ewebmachine.svg?branch=master)](https://travis-ci.org/kbrw/ewebmachine)
-
-See the [generated documentation](http://hexdocs.pm/ewebmachine) for more detailed explanations.
 
 The principle is to go through the [HTTP decision tree](https://raw.githubusercontent.com/kbrw/ewebmachine/master/doc/http_diagram.png)
 and make decisions according to response of some callbacks called "handlers".
