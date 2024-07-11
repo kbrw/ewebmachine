@@ -46,7 +46,7 @@ defmodule Ewebmachine.Mixfile do
   defp deps do
     [
       {:plug, "~> 1.10"},
-      {:plug_cowboy, "~> 2.4", optional: true},
+      {:plug_cowboy, "~> 2.4"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
     ]
