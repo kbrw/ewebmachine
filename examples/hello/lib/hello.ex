@@ -38,7 +38,7 @@ defmodule Hello do
     
     resource "/hello/:name" do %{name: name} after 
       content_types_provided do: ['application/xml': :to_xml]
-      defh to_xml(conn, state), do: {"<Person><name>#{state.name}</name>", conn, state}
+      defh to_xml(conn, state), do: {"<Person><name>#{state.name}</name></Person>", conn, state}
     end
     
     resource "/hello/json/:name" do %{name: name} after 
