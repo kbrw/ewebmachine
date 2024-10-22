@@ -1,11 +1,9 @@
+# Ewebmachine [![Build Status](https://github.com/kbrw/ewebmachine/actions/workflows/.github/workflows/build-and-test.yml/badge.svg)](https://github.com/kbrw/ewebmachine/actions/workflows/build-and-test.yml) [![Hex.pm](https://img.shields.io/hexpm/v/ewebmachine.svg)](https://hex.pm/packages/ewebmachine) [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/ewebmachine) ![Hex.pm License](https://img.shields.io/hexpm/l/ewebmachine)
+
 Ewebmachine is a full rewrite with clean DSL and plug integration
 based on Webmachine from basho. This version is not backward compatible with
 the previous one that was only a thin wrapper around webmachine, use the branch
 1.0-legacy to use the old one.
-
-[![Build Status](https://travis-ci.org/kbrw/ewebmachine.svg?branch=master)](https://travis-ci.org/kbrw/ewebmachine)
-
-See the [generated documentation](http://hexdocs.pm/ewebmachine) for more detailed explanations.
 
 The principle is to go through the [HTTP decision tree](https://raw.githubusercontent.com/kbrw/ewebmachine/master/doc/http_diagram.png)
 and make decisions according to response of some callbacks called "handlers".
@@ -28,7 +26,7 @@ To do that, the library gives you 5 plugs and 2 plug pipeline builders :
   define at the same time an `Ewebmachine.Builder.Handlers` and the
   matching spec to use it, and a plug `:resource_match` to do the
   match and execute the associated plug. The macro `resources_plugs` helps you
-  to define commong plug pipeling
+  to define common plug pipeline
 
 ## Example usage
 
@@ -64,14 +62,18 @@ defmodule FullApi do
 
   resource "/hello/:name" do %{name: name} after 
     content_types_provided do: ['application/xml': :to_xml]
-    defh to_xml, do: "<Person><name>#{state.name}</name>"
+    defh to_xml, do: "<Person><name>#{state.name}</name></Person>"
   end
 
   resource "/hello/json/:name" do %{name: name} after 
     plug MyJSONApi #this is also a plug pipeline
     allowed_methods do: ["GET","DELETE"]
-    resource_exists do: pass((user=DB.get(state.name)) !== nil, json_obj: user)
     delete_resource do: DB.delete(state.name)
+
+    defh resource_exists do
+      user = DB.get(state.name)
+      pass(user !== nil, json_obj: user)
+    end
   end
 
   resource "/static/*path" do %{path: Enum.join(path,"/")} after
@@ -105,7 +107,7 @@ defmodule MyApp do
   use Application
   def start(_type, _args), do:
     Supervisor.start_link([
-        Plug.Adapters.Cowboy.child_spec(:http,FullApi,[], port: 4000)
+        Plug.Cowboy.child_spec(:http,FullApi,[], port: 4000)
       ], strategy: :one_for_one)
 end
 ```
@@ -117,7 +119,7 @@ def application do
   [applications: [:logger,:ewebmachine,:cowboy], mod: {MyApp,[]}]
 end
 defp deps, do:
-  [{:ewebmachine, "2.0.0"}, {:cowboy, "~> 1.0"}]
+  [{:ewebmachine, "2.3.2"}, {:cowboy, "~> 1.0"}]
 ```
 
 # CONTRIBUTING

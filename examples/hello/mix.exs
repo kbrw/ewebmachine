@@ -12,7 +12,7 @@ defmodule Hello.Mixfile do
 
   def application do
     [
-      applications: [:logger, :ewebmachine, :cowboy],
+      applications: [:logger, :ewebmachine, :cowboy, :poison],
       mod: {Hello.App, []}
     ]
   end

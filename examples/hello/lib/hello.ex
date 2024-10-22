@@ -4,13 +4,20 @@ defmodule Hello do
     
     def start(_type, _args) do
       Supervisor.start_link([
-	Plug.Adapters.Cowboy2.child_spec(scheme: :http, plug: Hello.Api, options: [port: 4000]),
-	Supervisor.Spec.worker(Hello.Db, [])
+      	Plug.Cowboy.child_spec(scheme: :http, plug: Hello.Api, options: [port: 4000]),
+        Hello.Db
       ], strategy: :one_for_one)
     end
   end
 
   defmodule Db do
+    def child_spec(_), do: %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, []},
+      type: :worker,
+      restart: :permanent,
+      shutdown: 500
+    }
     def start_link, do: Agent.start_link(&Map.new/0, name: __MODULE__)
     def get(id), do: Agent.get(__MODULE__, &(Map.get(&1, id, nil)))
     def put(id, val), do: Agent.update(__MODULE__, &(Map.put(&1, id, val)))
@@ -38,7 +45,7 @@ defmodule Hello do
     
     resource "/hello/:name" do %{name: name} after 
       content_types_provided do: ['application/xml': :to_xml]
-      defh to_xml(conn, state), do: {"<Person><name>#{state.name}</name>", conn, state}
+      defh to_xml(conn, state), do: {"<Person><name>#{state.name}</name></Person>", conn, state}
     end
     
     resource "/hello/json/:name" do %{name: name} after 
@@ -100,8 +107,8 @@ defmodule Hello do
 
     resource "/static/*path" do %{path: Enum.join(path, "/")} after
       resource_exists do: File.regular?(path(state.path))
-      content_types_provided do: [ {state.path |> Plug.MIME.path() |> default_plain, :to_content} ]
-      
+      content_types_provided do: [ {state.path |> MIME.from_path() |> default_plain, :to_content} ]
+
       defh to_content(conn, state) do
 	body = File.stream!( path(state.path), [], 300_000_000)
 	{body, conn, state}
