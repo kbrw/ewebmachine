@@ -35,7 +35,8 @@ defmodule Ewebmachine.Mixfile do
       assets: "assets",
       extras: [
         "CHANGELOG.md": [title: "Changelog"],
-        "README.md": [title: "Overview"]
+        "README.md": [title: "Overview"],
+        "pages/demystify_dsl.md": [title: "Demystify Ewebmachine DSL"],
       ],
       main: "readme",
       source_url: git_repository(),
