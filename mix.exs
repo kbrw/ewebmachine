@@ -32,6 +32,7 @@ defmodule Ewebmachine.Mixfile do
 
   defp docs do
     [
+      assets: "assets",
       extras: [
         "CHANGELOG.md": [title: "Changelog"],
         "README.md": [title: "Overview"]

@@ -1,7 +1,7 @@
 defmodule Ewebmachine.Plug.Run do
   @moduledoc ~S"""
-    Plug passing your `conn` through the [HTTP decision tree](http_diagram.png)
-    to fill its status and response.
+    Plug passing your `conn` through the [HTTP decision
+    tree](./assets/http_diagram.png) to fill its status and response.
 
     This plug does not send the HTTP result, instead the `conn`
     result of this plug must be sent with the plug

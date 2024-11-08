@@ -1,7 +1,6 @@
 /ebin
 /deps
 /doc/*
-!/doc/*.png
 erl_crash.dump
 *.ez
 *~

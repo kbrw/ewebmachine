@@ -5,7 +5,7 @@ defmodule Ewebmachine.Handlers do
 
   @moduledoc """
   Implement the functions described below to make decisions in the 
-  [HTTP decision tree](http_diagram.png) :
+  [HTTP decision tree](./assets/http_diagram.png) :
 
   - `service_available/2`
   - `resource_exists/2`

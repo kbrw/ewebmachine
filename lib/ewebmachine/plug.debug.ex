@@ -28,7 +28,7 @@ defmodule Ewebmachine.Plug.Debug do
     browser will navigate to the debugging UI of the new request (you
     can still use back/next to navigate through requests)
 
-  ![Debug UI example](debug_ui.png)
+  ![Debug UI example](./assets/debug_ui.png)
   """
   use Plug.Router
   
