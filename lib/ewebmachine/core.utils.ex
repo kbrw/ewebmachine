@@ -82,7 +82,7 @@ defmodule Ewebmachine.Core.Utils do
   @doc """
   Get the string list from a comma separated list of HTTP quoted strings
   """
-  @spec split_quoted_strings([String.t]) :: [String.t]
+  @spec split_quoted_strings(String.t) :: [String.t]
   def split_quoted_strings(str) do
     str |>
       Plug.Conn.Utils.list() |>
