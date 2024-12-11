@@ -1,11 +1,12 @@
 # Demystify Ewebmachine DSL
 
-Everyone has made a route with `Ewebmachine` (or at least copy and paste one),
-but did you wonder once how does it work under the hood. Maybe you start
-looking into it and were repelled by the heavy use of macro.
+It's very likely, as a reader of this documentation, that you already wrote a a
+route with `Ewebmachine` (or at least copy and pasted one), but did you ever
+wonder once how does it works under the hood? Maybe you did start looking into
+it and were repelled by the heavy use of macro.
 
-This document aims to go through some of `Ewebmachine` internals, to explain
-how from a bunch of macros, we end up with a Plug pipeline.
+This document aims to go through some of `Ewebmachine`'s internals, in order to
+explain how, from a bunch of macros, we end up with a whole Plug pipeline.
 
 ---
 
@@ -23,11 +24,11 @@ end
 ```
 
 It imports the macro `Ewebmachine.Builder.Resources.resource/[3-4]` into the
-scope, with which we can make the `/api/path` route.
+scope, that we can then use to make the `/api/path` route.
 
 From this point on, the macro's magic starts :).
 
-**How do handlers (`allowed_methods` and friends) work?**
+## How do handlers (`allowed_methods` and friends) work?
 
 The [`resource` macro creates a module from the given
 body](https://github.com/kbrw/ewebmachine/blob/b7659b9f5068cb188409d016d13635c6c4b74d6b/lib/ewebmachine/builder.resources.ex#L157-L174).
@@ -59,8 +60,8 @@ end
 
 > #### Dynamic module {: .neutral}
 >
-> Dynamically named module aren't nested under their parent module.
-> That's why the `resource` macro concats it with the caller's module.
+> Dynamically named module aren't nested under their parent module. That's why
+> the `resource` macro concatenates it with the caller's module.
 
 In this module each handler will become a function. As is, each handler is a
 macro.
@@ -124,63 +125,63 @@ Great we now know how handlers are transformed into functions.
 
 ---
 
-**But how are handlers called?**
+## But how are handlers called?
 
-- Adding custom handlers to the connection
+### Adding custom handlers to the connection
 
-    The `:add_handlers` plug used by the created module takes care of adding
-    handler names saved into the module's attribute to the connection's private
-    field `:resource_handlers`.
+The `:add_handlers` plug used by the created module takes care of adding
+handler names saved into the module's attribute to the connection's private
+field `:resource_handlers`.
 
-    `use Ewebmachine.Builder.Handler` defines a `@before_compile
-    Ewebmachine.Builder.Handler` attributes in which the [`add_handlers` plug
-    function](https://github.com/kbrw/ewebmachine/blob/b7659b9f5068cb188409d016d13635c6c4b74d6b/lib/ewebmachine/builder.handlers.ex#L71-L78)
-    is defined:
+`use Ewebmachine.Builder.Handler` defines a `@before_compile
+Ewebmachine.Builder.Handler` attributes in which the [`add_handlers` plug
+function](https://github.com/kbrw/ewebmachine/blob/b7659b9f5068cb188409d016d13635c6c4b74d6b/lib/ewebmachine/builder.handlers.ex#L71-L78)
+is defined:
 
-    ```elixir
-    defmodule Ewebmachine.Builder.Handlers do
-      defmacro __before_compile__(_env) do
-        quote do
-          defp add_handlers(conn, opts) do
-            # [ ... ]
-            Plug.Conn.put_private(conn, :resource_handlers,
-              Enum.into(@resource_handlers, conn.private[:resource_handlers] || %{}))
-          end
-        end
-      end
-    end
-    ```
-
-- Internal usage of custom handlers
-
-    Ewebmachine [decision
-    tree](https://github.com/kbrw/ewebmachine/blob/b7659b9f5068cb188409d016d13635c6c4b74d6b/lib/ewebmachine/core.ex)
-    calls handlers when going through the tree. For instance, the
-    [`allowed_methods` is
-    call](https://github.com/kbrw/ewebmachine/blob/b7659b9f5068cb188409d016d13635c6c4b74d6b/lib/ewebmachine/core.ex#L61)
-    as such:
-
-    ```elixir
-    {methods, conn, state} = resource_call(conn, state, :allowed_methods)
-    ```
-
-    To use a custom handler, `Ewebmachine` simply looks up with the handler's
-    name, into its private connection field `:resource_handlers` (added by the
-    `:add_handlers` plug), which contains a map where keys are handler's names
-    and values are the handler's module. If you did not define a handler it
-    falls back to the default one inside the `Ewebmachine.Handlers` module.
-
-    ```elixir
-    defmodule Ewebmachine.Core.DSL do
-      def resource_call(conn, state, fun) do
-        handler = conn.private[:resource_handlers][fun] || Ewebmachine.Handlers
-        {reply, conn, state} = term = apply(handler, fun, [conn, state])
+```elixir
+defmodule Ewebmachine.Builder.Handlers do
+  defmacro __before_compile__(_env) do
+    quote do
+      defp add_handlers(conn, opts) do
         # [ ... ]
+        Plug.Conn.put_private(conn, :resource_handlers,
+          Enum.into(@resource_handlers, conn.private[:resource_handlers] || %{}))
       end
-
-      # [ ... ]
     end
-    ```
+  end
+end
+```
+
+### Internal usage of custom handlers
+
+Ewebmachine [decision
+tree](https://github.com/kbrw/ewebmachine/blob/b7659b9f5068cb188409d016d13635c6c4b74d6b/lib/ewebmachine/core.ex)
+calls handlers when going through the tree. For instance, the
+[`allowed_methods` is
+call](https://github.com/kbrw/ewebmachine/blob/b7659b9f5068cb188409d016d13635c6c4b74d6b/lib/ewebmachine/core.ex#L61)
+as such:
+
+```elixir
+{methods, conn, state} = resource_call(conn, state, :allowed_methods)
+```
+
+To use a custom handler, `Ewebmachine` simply looks up with the handler's name,
+into its private connection field `:resource_handlers` (added by the
+`:add_handlers` plug), which contains a map where keys are handler's names and
+values are the handler's module. If you did not define a handler it falls back
+to the default one inside the `Ewebmachine.Handlers` module.
+
+```elixir
+defmodule Ewebmachine.Core.DSL do
+  def resource_call(conn, state, fun) do
+    handler = conn.private[:resource_handlers][fun] || Ewebmachine.Handlers
+    {reply, conn, state} = term = apply(handler, fun, [conn, state])
+    # [ ... ]
+  end
+
+  # [ ... ]
+end
+```
 
 ---
 
@@ -228,15 +229,17 @@ defmodule MyApi.EWMApiPath do
 end
 ```
 
-**How does Ewebmachine call all of this?**
+### How does Ewebmachine call all of this?
 
 The missing piece of the puzzle is now, how does Ewebmachine call our plug
 module `MyApi.EWMApiPath`.
 
 From the macros' expansion above, we can see that it uses the `Plug.Router`.
 Moreover, the line `@before_compile Ewebmachine.Builder.Resources` isn't
-expanded, let's look into it. `Ewebmachine.Builder.Resources` called macro
-`__before_compile__` does the following:
+expanded, let's look into it. `Ewebmachine.Builder.Resources` calls the
+[`__before_compile__`
+macro](https://github.com/kbrw/ewebmachine/blob/b7659b9f5068cb188409d016d13635c6c4b74d6b/lib/ewebmachine/builder.resources.ex#L102-L119)
+does the following:
 
 ```elixir
 defmacro __before_compile__(_env) do
@@ -259,7 +262,9 @@ defmacro __before_compile__(_env) do
 end
 ```
 
-which makes a match for the `Plug.Router`, giving us the following once expanded:
+which produces a [`Plug.Router`'s
+match](https://hexdocs.pm/plug/Plug.Router.html#match/3), giving us the
+following once expanded:
 
 ```elixir
 defmodule MyApi do
@@ -283,9 +288,9 @@ defmodule MyApi do
 end
 ```
 
-The only thing required now is to add a few plugs to make the whole thing works.
-That what the macro `Ewebmachine.Builder.Resources.resources_plugs` usually
-does, but let's use only the required bits
+The only thing left to make the whole thing work is to add a few plugs. That's
+what the `Ewebmachine.Builder.Resources.resources_plugs` macro usually does,
+but let's use only the required bits:
 
 ```elixir
 defmodule MyApi do
@@ -299,12 +304,13 @@ end
 ```
 
 The `:resource_match` function plug finds a matching route (`match(nil)`) and
-calls it if matching (`dispatch(nil)`). Once done the connection `conn` is
-return by the plug module (for instance here `MyApiEWMApiPath`) and now
+calls it if matching (`dispatch(nil)`). Once found the connection `conn` is
+returned by the plug module (for instance here `MyApiEWMApiPath`), and now
 contains our resource custom handlers.
 
-Then the `Ewebmachine.Plug.Run` plug which contains `Ewebmachine`'s decision
-tree is call, and its behaviour will change based on our custom handlers.
+Then the `Ewebmachine.Plug.Run` plug, which contains the `Ewebmachine`'s
+decision tree, is called, and its behaviour will change based on our custom
+handlers.
 
-Finally, the `Ewebmachine.Plug.Send` plug is call and sends the response if the
-connection wasn't halted before.
+Finally, the `Ewebmachine.Plug.Send` plug is called and sends the response if
+the connection wasn't halted before.
