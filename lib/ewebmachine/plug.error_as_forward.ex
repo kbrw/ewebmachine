@@ -10,7 +10,7 @@ defmodule Ewebmachine.Plug.ErrorAsForward do
 
   @doc false
   def call(%{status: code, state: :set}=conn, pattern) when code > 399 do
-    path = pattern |> String.slice(1..-1) |> String.replace(":status", to_string(code)) |> String.split("/")
+    path = pattern |> String.slice(1..-1//-1) |> String.replace(":status", to_string(code)) |> String.split("/")
     %{ conn | path_info: path, method: "GET", state: :unset }
   end
   def call(conn, _), do: conn

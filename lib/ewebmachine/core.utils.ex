@@ -29,8 +29,8 @@ defmodule Ewebmachine.Core.Utils do
   """
   @spec fuzzy_mt_match(norm_content_type, norm_content_type) :: boolean
   def fuzzy_mt_match({h_type, h_subtype, h_params}, {a_type, a_subtype, a_params}) do
-    (a_type == h_type or a_type == "*" ) and 
-      (a_subtype == h_subtype or a_subtype=="*") and 
+    (a_type == h_type or a_type == "*" ) and
+      (a_subtype == h_subtype or a_subtype=="*") and
       Enum.all?(a_params, fn {k, v} -> h_params[k] == v end)
   end
 
@@ -44,7 +44,7 @@ defmodule Ewebmachine.Core.Utils do
   end
 
   @doc """
-  HTTP Content negociation, get the content type to send from : 
+  HTTP Content negociation, get the content type to send from :
 
   - `accept_header`, the HTTP header `Accept`
   - `ct_provided`, the list of provided content types
@@ -58,7 +58,7 @@ defmodule Ewebmachine.Core.Utils do
 	e -> e
       end) |>
       Enum.map(&Plug.Conn.Utils.media_type/1)
-    accepts = for {:ok, type, subtype, params} <- accepts do 
+    accepts = for {:ok, type, subtype, params} <- accepts do
       q = case Float.parse(params["q"] || "1") do
 	    {q, _} -> q
 	    _ -> 1
@@ -96,7 +96,7 @@ defmodule Ewebmachine.Core.Utils do
   def rfc1123_date({{yyyy, mm, dd}, {hour, min, sec}}) do
     day_number = :calendar.day_of_the_week({yyyy, mm, dd})
     args = [:httpd_util.day(day_number), dd, :httpd_util.month(mm), yyyy, hour, min, sec]
-    :io_lib.format('~s, ~2.2.0w ~3.s ~4.4.0w ~2.2.0w:~2.2.0w:~2.2.0w GMT', args) |> IO.iodata_to_binary()
+    :io_lib.format(~c"~s, ~2.2.0w ~3.s ~4.4.0w ~2.2.0w:~2.2.0w:~2.2.0w GMT", args) |> IO.iodata_to_binary()
   end
 
   @doc """
@@ -105,13 +105,13 @@ defmodule Ewebmachine.Core.Utils do
   @spec convert_request_date(String.t) :: {{year :: integer, month :: integer, day :: integer}, {h :: integer, min :: integer, sec :: integer}} | :bad_date
   def convert_request_date(date) do
     try do
-      :httpd_util.convert_request_date('#{date}')
+      :httpd_util.convert_request_date(~c"#{date}")
     catch _, _ -> :bad_date
     end
   end
 
   @doc """
-  HTTP Encoding negociation, get the encoding to use from : 
+  HTTP Encoding negociation, get the encoding to use from :
 
   - `acc_enc_hdr`, the HTTP header `Accept-Encoding`
   - `encs`, the list of supported encoding
@@ -122,7 +122,7 @@ defmodule Ewebmachine.Core.Utils do
   end
 
   @doc """
-  HTTP Charset negociation, get the charset to use from : 
+  HTTP Charset negociation, get the charset to use from :
 
   - `acc_char_hdr`, the HTTP header `Accept-Charset`
   - `charsets`, the list of supported charsets
@@ -183,7 +183,7 @@ defmodule Ewebmachine.Core.Utils do
   ### Priv
   ###
   alias Ewebmachine.Compat
-  
+
   defp choose(choices, header, default) do
     ## sorted set of {prio,value}
     prios = prioritized_values(header)
@@ -192,14 +192,14 @@ defmodule Ewebmachine.Core.Utils do
     default_prio = Enum.find_value(prios, fn {prio, v} -> v == default && prio end)
     start_prio = Enum.find_value(prios, fn {prio, v} -> v == "*" && prio end)
     default_ok = case default_prio do
-		   nil -> start_prio !== 0.0
-		   0.0 -> false
+		   nil -> start_prio !== +0.0
+		   +0.0 -> false
 		   _ -> true
 		 end
-    any_ok = start_prio not in [nil, 0.0]
+    any_ok = start_prio not in [nil, +0.0]
 
     # remove choices where prio == 0.0
-    {zero_prios, prios} = Compat.Enum.split_with(prios, fn {prio, _} -> prio == 0.0 end)
+    {zero_prios, prios} = Compat.Enum.split_with(prios, fn {prio, _} -> prio == +0.0 end)
     choices_to_remove = Enum.map(zero_prios, &elem(&1, 1))
     choices = Enum.filter(choices, &!(String.downcase(&1) in choices_to_remove))
 
@@ -218,7 +218,7 @@ defmodule Ewebmachine.Core.Utils do
   end
 
   defp prioritized_values(header) do
-    header 
+    header
     |> Plug.Conn.Utils.list
     |> Enum.map(fn e->
         {q,v} = case String.split(e,~r"\s;\s", parts: 2) do

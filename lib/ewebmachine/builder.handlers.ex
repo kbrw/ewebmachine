@@ -5,19 +5,19 @@ defmodule Ewebmachine.Builder.Handlers do
   you an `:add_handler` local function plug which adds to the conn
   the locally defined ewebmachine handlers (see `Ewebmachine.Handlers`).
 
-  So : 
+  So :
 
   - Construct your automate decision handler through multiple `:add_handler` plugs
   - Pipe the plug `Ewebmachine.Plug.Run` to run the HTTP automate which
-    will call these handlers to take decisions. 
+    will call these handlers to take decisions.
   - Pipe the plug `Ewebmachine.Plug.Send` to send and halt any conn previsously passed
     through an automate run.
-  
+
   To define handlers, use the following helpers :
 
   - the handler specific macros (like `Ewebmachine.Builder.Handlers.resource_exists/1`)
   - the macro `defh/2` to define any helpers, usefull for body
-    producing handlers or to have multiple function clauses 
+    producing handlers or to have multiple function clauses
   - in handler implementation `conn` and `state` binding are available
   - the response of the handler implementation is wrapped, so that
     returning `:my_response` is the same as returning `{:my_response,conn,state}`
@@ -25,7 +25,7 @@ defmodule Ewebmachine.Builder.Handlers do
   Below a full example :
 
   ```
-  defmodule MyJSONApi do 
+  defmodule MyJSONApi do
     use Ewebmachine.Builder.Handlers
     plug :cors
     plug :add_handlers, init: %{}
@@ -33,11 +33,11 @@ defmodule Ewebmachine.Builder.Handlers do
     content_types_provided do: ["application/json": :to_json]
     defh to_json, do: Poison.encode!(state[:json_obj])
 
-    defp cors(conn,_), do: 
+    defp cors(conn,_), do:
       put_resp_header(conn,"Access-Control-Allow-Origin","*")
   end
 
-  defmodule GetUser do 
+  defmodule GetUser do
     use Ewebmachine.Builder.Handlers
     plug MyJSONApi
     plug :add_handlers
@@ -46,7 +46,7 @@ defmodule Ewebmachine.Builder.Handlers do
     resource_exists do:
       pass( !is_nil(user=DB.User.get(conn.params["q"])), json_obj: user)
   end
-  defmodule GetOrder do 
+  defmodule GetOrder do
     use Ewebmachine.Builder.Handlers
     plug MyJSONApi
     plug :add_handlers
@@ -58,7 +58,7 @@ defmodule Ewebmachine.Builder.Handlers do
 
   defmodule API do
     use Plug.Router
-    plug :match 
+    plug :match
     plug :dispatch
 
     get "/get/user", do: GetUser.call(conn,[])
@@ -106,7 +106,7 @@ defmodule Ewebmachine.Builder.Handlers do
         res = unquote(body)
         wrap_response(res,var!(conn),var!(state))
       end
-    end 
+    end
   end
   defp handler_quote(name,body) do
     handler_quote(name,body,true,quote(do: _),quote(do: _))
@@ -115,12 +115,12 @@ defmodule Ewebmachine.Builder.Handlers do
   @doc """
   define a resource handler function as described at
   `Ewebmachine.Handlers`.
-  
+
   Since there is a specific macro in this module for each handler,
-  this macro is useful : 
+  this macro is useful :
 
   - to define body producing and body processing handlers (the one
-    referenced in the response of `Ewebmachine.Handlers.content_types_provided/2` or 
+    referenced in the response of `Ewebmachine.Handlers.content_types_provided/2` or
     `Ewebmachine.Handlers.content_types_accepted/2`)
   - to explicitly take the `conn` and the `state` parameter, which
     allows you to add guards and pattern matching for instance to
@@ -142,13 +142,13 @@ defmodule Ewebmachine.Builder.Handlers do
   end
 
   for resource_fun_name<-@resource_fun_names do
-    Module.eval_quoted(Ewebmachine.Builder.Handlers, quote do
+    Code.eval_quoted(quote do
       @doc "see `Ewebmachine.Handlers.#{unquote(resource_fun_name)}/2`"
       defmacro unquote(resource_fun_name)(do_block) do
         name = unquote(resource_fun_name)
         handler_quote(name,do_block[:do])
       end
-    end)
+    end, [], __ENV__)
   end
 
   @doc false
@@ -171,7 +171,7 @@ defmodule Ewebmachine.Builder.Handlers do
       {true,conn,%{id: "arnaud", current_user: %User{id: "arnaud"}}}
   """
   defmacro pass(response,update_state) do
-    quote do 
+    quote do
       {unquote(response),var!(conn),Enum.into(unquote(update_state),var!(state))}
     end
   end
