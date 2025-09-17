@@ -8,10 +8,10 @@ defmodule CommonMacros do
       name,
       quote do
         use Ewebmachine.Builder.Resources
-        plug(:resource_match)
-        plug(Ewebmachine.Plug.Run)
-        plug(Ewebmachine.Plug.Send)
-        plug(:error_404)
+        plug :resource_match
+        plug Ewebmachine.Plug.Run
+        plug Ewebmachine.Plug.Send
+        plug :error_404
         defp error_404(conn, _), do: conn |> send_resp(404, "") |> halt
         unquote(body)
       end,
