@@ -12,7 +12,7 @@ defmodule CommonMacros do
         plug Ewebmachine.Plug.Run
         plug Ewebmachine.Plug.Send
         plug :error_404
-        defp error_404(conn, _), do: conn |> send_resp(404, "") |> halt
+        defp error_404(conn, _), do: conn |> send_resp(404, "") |> halt()
         unquote(body)
       end,
       Macro.Env.location(__ENV__)
