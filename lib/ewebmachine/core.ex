@@ -572,20 +572,20 @@ defmodule Ewebmachine.Core do
 
       {base_uri, conn, state} = resource_call(conn, state, :base_uri)
       base_uri = if String.last(base_uri) == "/" do
-	String.slice(base_uri,0..-2//-1)
+        String.slice(base_uri, 0..-2//1)
       else
-	base_uri
+        base_uri
       end
       new_path = if !match?("/"<>_, new_path) do
-	"#{path(conn)}/#{new_path}"
+        "#{path(conn)}/#{new_path}"
       else
-	new_path
+        new_path
       end
 
       conn = if !get_resp_header(conn, "location") do
         set_resp_header(conn, "location", base_uri <> new_path)
       else
-	conn
+        conn
       end
       redirect_helper(conn, state)
     else
