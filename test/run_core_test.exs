@@ -185,9 +185,9 @@ defmodule EwebmachineTest do
         allowed_methods do: ["POST"]
         post_is_create do: true
 	# Check modified state is propagated
-        defh create_path, do: {state.path, conn, state}
+        defh create_path(conn, %{path: path} = state), do: {path, conn, state}
         content_types_accepted do: ["text/plain": :from_text]
-        defh from_text, do: {true, conn, state |> Map.put(:path, "titus")}
+        defh from_text(conn, state), do: {true, conn, state |> Map.put(:path, "titus")}
       end
     end
     conn = app.call(conn(:post,"/orders","titus") |> put_req_header("content-type", "text/plain"), [])

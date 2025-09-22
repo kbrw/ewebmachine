@@ -100,9 +100,19 @@ defmodule Ewebmachine.Builder.Handlers do
   defp sig_to_sigwhen({name,_,_}), do: {name,[quote(do: _),quote(do: _)],true}
 
   defp handler_quote(name,body,guard,conn_match,state_match) do
+    conn_match = case var_in_patterns?(conn_match, :conn) do
+      true -> conn_match
+      false -> quote(do: unquote(conn_match) = var!(conn))
+    end
+
+    state_match = case var_in_patterns?(state_match, :state) do
+      true -> state_match
+      false -> quote(do: unquote(state_match) = var!(state))
+    end
+
     quote do
       @resource_handlers Map.put(@resource_handlers,unquote(name),__MODULE__)
-      def unquote(name)(unquote(conn_match)=var!(conn),unquote(state_match)=var!(state)) when unquote(guard) do
+      def unquote(name)(unquote(conn_match), unquote(state_match)) when unquote(guard) do
         res = unquote(body)
         wrap_response(res,var!(conn),var!(state))
       end
@@ -110,6 +120,19 @@ defmodule Ewebmachine.Builder.Handlers do
   end
   defp handler_quote(name,body) do
     handler_quote(name,body,true,quote(do: _),quote(do: _))
+  end
+
+  defp var_in_patterns?(ast, name) do
+    case ast do
+      {:=, meta, [pat1, pat2]} when is_list(meta) ->
+        var_in_patterns?(pat1, name) or var_in_patterns?(pat2, name)
+
+      {^name, meta, context} when is_list(meta) and is_atom(context) ->
+        true
+
+      _ ->
+        false
+    end
   end
 
   @doc """
