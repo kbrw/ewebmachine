@@ -9,9 +9,15 @@ defmodule Ewebmachine.Plug.ErrorAsForward do
   def init(opts), do: (opts[:forward_pattern] || "/error/:status")
 
   @doc false
-  def call(%{status: code, state: :set}=conn, pattern) when code > 399 do
-    path = pattern |> String.slice(1..-1) |> String.replace(":status", to_string(code)) |> String.split("/")
-    %{ conn | path_info: path, method: "GET", state: :unset }
+  def call(%Plug.Conn{status: code, state: :set} = conn, pattern) when code > 399 do
+    # `path_info` info is the request path split as segments.
+    path_info =
+      # Generate a path according to the status code.
+      String.replace(pattern, ":status", to_string(code))
+      # Transform it into segments.
+      |> String.split("/", trim: true)
+
+    %{conn | path_info: path_info, method: "GET", state: :unset}
   end
   def call(conn, _), do: conn
 end

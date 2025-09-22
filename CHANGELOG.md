@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.2] (2025-09-17)
+
+### Changed
+
+* Code janitoring to be compliant with elixir 1.18
+
 ## [2.3.2] (2023-08-04)
 
 ### Changed
