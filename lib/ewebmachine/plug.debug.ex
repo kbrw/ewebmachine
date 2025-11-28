@@ -1,6 +1,6 @@
 defmodule Ewebmachine.Plug.Debug do
   @moduledoc ~S"""
-  A ewebmachine debug UI at `/wm_debug`
+  A plug providing a debug UI for the decision tree available at `/wm_debug`
 
   Add it before `Ewebmachine.Plug.Run` in your plug pipeline when you
   want debugging facilities.
@@ -14,11 +14,10 @@ defmodule Ewebmachine.Plug.Debug do
   the ewebmachine debugging UI. The list will be automatically
   updated on new query.
 
-  The ewebmachine debugging UI 
-
+  The ewebmachine debugging UI:
   - shows you the HTTP decision path taken by the request to the response. Every
   - the red decisions are the one where decisions differs from the
-    default one because of a handler implementation :
+    default one because of a handler implementation:
     - click on them, then select any handler available in the right
       tab to see the `conn`, `state` inputs of the handler and the
       response.

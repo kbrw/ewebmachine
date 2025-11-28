@@ -8,17 +8,17 @@ defmodule Ewebmachine.Builder.Resources do
   See `Ewebmachine.Builder.Handlers` documentation to see how to
   contruct these modules (in the `after` block)
 
-  Below a full example :
+  Below a full example:
 
-  ```
-
+  ```elixir
   defmodule FullApi do
     use Ewebmachine.Builder.Resources
+
     if Mix.env == :dev, do: plug Ewebmachine.Plug.Debug
     # pre plug, for instance you can put plugs defining common handlers
     plug :resource_match
     plug Ewebmachine.Plug.Run
-    # customize ewebmachine result, for instance make an error page handler plug
+    # customize Ewebmachine result, for instance make an error page handler plug
     plug Ewebmachine.Plug.Send
     # plug after that will be executed only if no ewebmachine resources has matched
 
@@ -140,8 +140,21 @@ defmodule Ewebmachine.Builder.Resources do
     |> Enum.join()
   end
 
+  @doc """
+  Same as `resource/2` but you can set the module's name.
+
+  ```elixir
+  resource ShortenedRouteName, "/my/route/that/would/generate/a/long/module/name/:id" do
+    # ...
+  end
+  ```
+  """
+  defmacro resource({:__aliases__, _, route_aliases}, route, do: init_block, after: body) do
+    resource_quote(Module.concat([__CALLER__.module | route_aliases]), route, init_block, body)
+  end
+
   @doc ~S"""
-  Create a webmachine handler plug and use it on `:resource_match` when path matches
+  Create an Ewebmachine handler plug and use it on `:resource_match` when path matches
 
   - the route will be the matching spec (see Plug.Router.match, string spec only)
   - do_block will be called on match (so matching bindings will be
@@ -150,29 +163,15 @@ defmodule Ewebmachine.Builder.Resources do
     (wrapped with `use Ewebmachine.Builder.Handlers` and `plug
     :add_handlers` to clean the declaration.
 
-  ```
+  ```elixir
   resource "/my/route/:commaid" do
-    id = string.split(commaid,",")
+    id = String.split(commaid, ",")
     %{foo: id}
   after
-    plug someadditionnalplug
-    resource_exists do: state.id == ["hello"]
-  end
-
-  resource ShortenedRouteName, "/my/route/that/would/generate/a/long/module/name/:commaid" do
-    id = String.split(commaid,",")
-    %{foo: id}
-  after
-    plug SomeAdditionnalPlug
     resource_exists do: state.id == ["hello"]
   end
   ```
-
   """
-  defmacro resource({:__aliases__, _, route_aliases}, route, do: init_block, after: body) do
-    resource_quote(Module.concat([__CALLER__.module | route_aliases]), route, init_block, body)
-  end
-
   defmacro resource(route, do: init_block, after: body) do
     resource_quote(
       Module.concat(__CALLER__.module, "EWM" <> route_as_mod(route)),

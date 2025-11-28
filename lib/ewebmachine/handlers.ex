@@ -4,8 +4,9 @@ defmodule Ewebmachine.Handlers do
   @type halt :: {:halt, 200..599}
 
   @moduledoc """
-  Implement the functions described below to make decisions in the 
-  [HTTP decision tree](./assets/http_diagram.png) :
+  Implement the functions described below to make decisions in the HTTP decision tree:
+
+  ![](./assets/http_diagram.png)
 
   - `service_available/2`
   - `resource_exists/2`
@@ -47,19 +48,19 @@ defmodule Ewebmachine.Handlers do
   - POST/PUT processing function, see `from_json/2` (but any function name can be
     used, as referenced by `content_types_accepted/2`
 
-  All the handlers have the same signature :
-
+  All the handlers have the same signature:
+  ```elixir
+  @spec handler(conn, state) :: {response :: any | {:halt, 200..599}, conn, state}
+    when conn: Plug.Conn.t(), state: var()
   ```
-  (conn :: Plug.Conn.t,state :: any)->{response :: any | {:halt,200..599},conn :: Plug.Conn.t, state :: any}
-  ```
 
-  where every handler implementation : 
+  where every handler implementation:
 
   - can change or halt the plug `conn` passed as argument
   - can change the user state object passed from on handler to another in its arguments
   - returns something which will make decision in the HTTP decision tree (see
     documentation of functions in this module to see expected results and effects)
-  - can return `{:halt,200..599}` to end the ewebmachine automate execution,
+  - can return `{:halt, 200..599}` to end the ewebmachine automate execution,
     but do not `halt` the `conn`, so the plug pipeline can continue.
 
   So each handler implementation is actually a "plug" returning a response giving
@@ -68,14 +69,13 @@ defmodule Ewebmachine.Handlers do
 
   ## Usage ##
 
-  The following modules will help you to construct these handlers and use them :
+  The following modules will help you to construct these handlers and use them:
 
   - `Ewebmachine.Builder.Handlers` gives you macros and helpers to define the
     handlers and automatically create the plug to add them to your `conn.private[:resource_handlers]`
   - `Ewebmachine.Plug.Run` run the HTTP decision tree executing the handler
      implementations described in its `conn.private[:resource_handlers]`. The
      initial user `state` is taken in `conn.private[:machine_init]`
-
   """
 
   @doc """
@@ -206,7 +206,7 @@ defmodule Ewebmachine.Handlers do
   def content_types_provided(conn, state), do: {[{"text/html", :to_html}], conn, state}
 
   @doc """
-  This is used similarly to content_types_provided, except that it is
+  This is used similarly to `content_types_provided/2`, except that it is
   for incoming resource representations -- for example, PUT requests.
   Handler functions usually want to use `Plug.read_body(conn)` to
   access the incoming request body.
@@ -225,7 +225,7 @@ defmodule Ewebmachine.Handlers do
   def delete_resource(conn, state), do: {false, conn, state}
 
   @doc """
-  This is only called after a successful `delete_resource` call, and
+  This is only called after a successful `delete_resource/2` call, and
   should return `false` if the deletion was accepted but cannot yet be
   guaranteed to have finished.
   """
@@ -235,8 +235,8 @@ defmodule Ewebmachine.Handlers do
   @doc """
   If POST requests should be treated as a request to put content into
   a (potentially new) resource as opposed to being a generic
-  submission for processing, then this function should return true.
-  If it does return `true`, then `create_path` will be called and the
+  submission for processing, then this function should return `true`.
+  If it does return `true`, then `create_path/2` will be called and the
   rest of the request will be treated much like a PUT to the Path
   entry returned by that call.
 
@@ -246,9 +246,9 @@ defmodule Ewebmachine.Handlers do
   def post_is_create(conn, state), do: {false, conn, state}
 
   @doc """
-  This will be called on a POST request if `post_is_create` returns
-  true. It is an error for this function not to produce a Path if
-  post_is_create returns true. The Path returned should be a valid
+  This will be called on a POST request if `post_is_create/2` returns
+  `true`. It is an error for this function not to produce a Path if
+  `post_is_create/2` returns `true`. The Path returned should be a valid
   URI part.
   """
   @spec create_path(conn, state) :: {nil | String.t() | halt, conn, state}
@@ -256,7 +256,7 @@ defmodule Ewebmachine.Handlers do
 
   @doc """
   The base URI used in the location header on resource creation (when
-  `post_is_create` is `true`), will be prepended to the `create_path`
+  `post_is_create/2` is `true`), will be prepended to the `create_path/2`
   """
   @spec base_uri(conn, state) :: {String.t() | halt, conn, state}
   def base_uri(conn, state),
@@ -267,7 +267,7 @@ defmodule Ewebmachine.Handlers do
   defp port_suffix(_, port), do: ":#{port}"
 
   @doc """
-  If `post_is_create` returns `false`, then this will be called to
+  If `post_is_create/2` returns `false`, then this will be called to
   process any POST requests. If it succeeds, it should return `true`.
   """
   @spec process_post(conn, state) :: {boolean | halt, conn, state}
@@ -298,13 +298,13 @@ defmodule Ewebmachine.Handlers do
   ##    [{"iso-8859-1", fun(X) -> X end}, {"utf-8", make_utf8}];
 
   @doc """
-  This must be a `{key,value}` Enumerable where `key` is a valid
+  This must be a `{key, value}` Enumerable where `key` is a valid
   content encoding and `value` is a callable function in the resource
   which will be called on the produced body in a GET and ensure that
   it is so encoded. One useful setting is to have the function check
   on method, and on GET requests return:
 
-  ```
+  ```elixir
   [identity: &(&1), gzip: &:zlib.gzip/1]
   ```
    as this is all that is needed to support gzip content encoding.
@@ -350,7 +350,7 @@ defmodule Ewebmachine.Handlers do
   def multiple_choices(conn, state), do: {false, conn, state}
 
   @doc """
-  If this returns `true`, the `moved_permanently` and `moved_temporarily`
+  If this returns `true`, the `moved_permanently/2` and `moved_temporarily/2`
   callbacks will be invoked to determine whether the response should
   be `301 Moved Permanently`, `307 Temporary Redirect`, or `410 Gone`.
 
@@ -413,7 +413,7 @@ defmodule Ewebmachine.Handlers do
   def generate_etag(conn, state), do: {nil, conn, state}
 
   @doc """
-  if `content-md5` header exists: 
+  if `content-md5` header exists:
   - If `:not_validated`, test if input body validate `content-md5`,
   - if return `false`, then return a bad request
 
@@ -450,7 +450,7 @@ defmodule Ewebmachine.Handlers do
   in `content_types_accepted/2`.
 
   It will be called when the request is `PUT` or when the
-    request is `POST` and `post_is_create` returns true.
+  request is `POST` and `post_is_create/2` returns true.
   """
   @spec from_json(conn, state) :: {true | halt, conn, state}
   def from_json(conn, state), do: {true, conn, state}

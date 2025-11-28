@@ -2,8 +2,8 @@ defmodule Ewebmachine.Builder.Handlers do
   @moduledoc """
   `use` this  module will `use Plug.Builder` (so a plug pipeline
   described with the `plug module_or_function_plug` macro), but gives
-  you an `:add_handler` local function plug which adds to the conn
-  the locally defined ewebmachine handlers (see `Ewebmachine.Handlers`).
+  you an `:add_handler` local function plug which adds to the `conn`
+  the locally defined Ewebmachine handlers (see `Ewebmachine.Handlers`).
 
   So :
 
@@ -13,18 +13,18 @@ defmodule Ewebmachine.Builder.Handlers do
   - Pipe the plug `Ewebmachine.Plug.Send` to send and halt any conn previsously passed
     through an automate run.
 
-  To define handlers, use the following helpers :
+  To define handlers, use the following helpers:
 
   - the handler specific macros (like `Ewebmachine.Builder.Handlers.resource_exists/1`)
   - the macro `defh/2` to define any helpers, usefull for body
     producing handlers or to have multiple function clauses
-  - in handler implementation `conn` and `state` binding are available
+  - in handler implementation `conn` and `state` bindings are available
   - the response of the handler implementation is wrapped, so that
     returning `:my_response` is the same as returning `{:my_response,conn,state}`
 
-  Below a full example :
+  Below a full example:
 
-  ```
+  ```elixir
   defmodule MyJSONApi do
     use Ewebmachine.Builder.Handlers
     plug :cors
@@ -43,17 +43,28 @@ defmodule Ewebmachine.Builder.Handlers do
     plug :add_handlers
     plug Ewebmachine.Plug.Run
     plug Ewebmachine.Plug.Send
-    resource_exists do:
-      pass( !is_nil(user=DB.User.get(conn.params["q"])), json_obj: user)
+
+    resource_exists do
+      case DB.User.get(conn.params["q"]) do
+        nil -> false
+        user -> pass(true, json_obj: user)
+      end
+    end
   end
+
   defmodule GetOrder do
     use Ewebmachine.Builder.Handlers
     plug MyJSONApi
     plug :add_handlers
     plug Ewebmachine.Plug.Run
     plug Ewebmachine.Plug.Send
-    resource_exists do:
-      pass(!is_nil(order=DB.Order.get(conn.params["q"])), json_obj: order)
+
+    resource_exists do
+      case DB.Order.get(conn.params["q"]) do
+        nil -> false
+        order -> pass(true, json_obj: order)
+      end
+    end
   end
 
   defmodule API do
@@ -61,9 +72,9 @@ defmodule Ewebmachine.Builder.Handlers do
     plug :match
     plug :dispatch
 
-    get "/get/user", do: GetUser.call(conn,[])
-    get "/get/order", do: GetOrder.call(conn,[])
-    end
+    get "/get/user", to: GetUser
+    get "/get/order", to: GetOrder
+  end
   ```
   """
   defmacro __before_compile__(_env) do
@@ -183,19 +194,20 @@ defmodule Ewebmachine.Builder.Handlers do
   - to define body producing and body processing handlers (the one
     referenced in the response of `Ewebmachine.Handlers.content_types_provided/2` or
     `Ewebmachine.Handlers.content_types_accepted/2`)
+
+    ```elixir
+    defh to_html, do: "hello you"
+    defh from_json, do: pass(:ok, json: Poison.decode!(read_body conn))
+    ```
+
   - to explicitly take the `conn` and the `state` parameter, which
     allows you to add guards and pattern matching for instance to
     define multiple clauses for the handler
 
-  ```
-  defh to_html, do: "hello you"
-  defh from_json, do: pass(:ok, json: Poison.decode!(read_body conn))
-  ```
-
-  ```
-  defh resources_exists(conn,%{obj: obj}) when obj !== nil, do: true
-  defh resources_exists(conn,_), do: false
-  ```
+    ```elixir
+    defh resources_exists(conn, %{obj: obj}) when obj != nil, do: true
+    defh resources_exists(conn, _), do: false
+    ```
   """
   defmacro defh(signature, do_block) do
     {name, [conn_match, state_match], guard} = sig_to_sigwhen(signature)
@@ -221,19 +233,26 @@ defmodule Ewebmachine.Builder.Handlers do
   def wrap_response(r, conn, state), do: {r, conn, state}
 
   @doc """
-  Shortcut macro for :
-  {response,var!(conn),Enum.into(update_state,var!(state))}
+  Shortcut macro for:
+
+    {response, var!(conn), Enum.into(update_state,var!(state))}
 
   use it if your handler wants to add some value to a collectable
   state (a map for instance), but using default "conn" current
   binding.
 
   for instance a resources_exists implementation "caching" the result
-  in the state could be :
+  in the state could be:
 
-      pass (user=DB.get(state.id)) != nil, current_user: user
-      # same as returning :
-      {true,conn,%{id: "arnaud", current_user: %User{id: "arnaud"}}}
+  ```elixir
+  user = DB.get(state.id)
+
+  pass is_map(user), current_user: user
+  ```
+  same as returning
+  ```elixir
+  {true, conn, %{id: "arnaud", current_user: %User{id: "arnaud"}}}
+  ```
   """
   defmacro pass(response, update_state) do
     quote do
