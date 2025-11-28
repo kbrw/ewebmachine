@@ -4,8 +4,14 @@ defmodule Ewebmachine.Plug.ErrorAsException do
   exception with the status code and the HTTP error name as the message. If
   this response body is not void, use it as the exception message.
   """
+  @behaviour Plug
+
   defexception [:plug_status, :message]
+
+  @impl Plug
   def init(_), do: []
+
+  @impl Plug
   def call(%{status: code, state: :set} = conn, _) when code > 399, do: raise(__MODULE__, conn)
   def call(conn, _), do: conn
 

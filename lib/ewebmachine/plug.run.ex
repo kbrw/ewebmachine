@@ -23,10 +23,12 @@ defmodule Ewebmachine.Plug.Run do
   A successfull run will reset the resource handlers and initial state.
   """
 
-  @doc false
+  @behaviour Plug
+
+  @impl Plug
   def init(_opts), do: []
 
-  @doc false
+  @impl Plug
   def call(conn, _opts) do
     init = conn.private[:machine_init]
 

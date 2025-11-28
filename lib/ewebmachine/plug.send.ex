@@ -5,10 +5,12 @@ defmodule Ewebmachine.Plug.Send do
   """
   import Plug.Conn
 
-  @doc false
+  @behaviour Plug
+
+  @impl Plug
   def init(_opts), do: []
 
-  @doc false
+  @impl Plug
   def call(conn, _opts) do
     if conn.state == :set do
       stream = conn.private[:machine_body_stream]

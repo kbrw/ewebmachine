@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- `Ewebmachine.Plug.Debug`, `Ewebmachine.Plug.ErrorAsException`,
+  `Ewebmachine.Plug.ErrorAsForward`, `Ewebmachine.Plug.Run`, and
+  `Ewebmachine.Plug.Send` now implement the `Plug` behaviour. Nothing changed in
+  their implementation.
+
 ## [2.3.3] (2025-09-22)
 
 ### Changed

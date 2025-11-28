@@ -4,11 +4,12 @@ defmodule Ewebmachine.Plug.ErrorAsForward do
   and, when the current response status is an error, simply forward to a `GET`
   to the path defined by the pattern and this status.
   """
+  @behaviour Plug
 
-  @doc false
+  @impl Plug
   def init(opts), do: opts[:forward_pattern] || "/error/:status"
 
-  @doc false
+  @impl Plug
   def call(%Plug.Conn{status: code, state: :set} = conn, pattern) when code > 399 do
     # `path_info` info is the request path split as segments.
     # Generate a path according to the status code.
