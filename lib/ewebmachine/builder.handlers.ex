@@ -69,15 +69,21 @@ defmodule Ewebmachine.Builder.Handlers do
   defmacro __before_compile__(_env) do
     quote do
       defp add_handlers(conn, opts) do
-        conn = case Access.fetch(opts, :init) do
-          {:ok, init} when not (init in [false, nil]) -> put_private(conn, :machine_init, init)
-          _ -> conn
-        end
-        Plug.Conn.put_private(conn, :resource_handlers,
-          Enum.into(@resource_handlers, conn.private[:resource_handlers] || %{}))
+        conn =
+          case Access.fetch(opts, :init) do
+            {:ok, init} when init not in [false, nil] -> put_private(conn, :machine_init, init)
+            _ -> conn
+          end
+
+        Plug.Conn.put_private(
+          conn,
+          :resource_handlers,
+          Enum.into(@resource_handlers, conn.private[:resource_handlers] || %{})
+        )
       end
     end
   end
+
   defmacro __using__(_opts) do
     quote location: :keep do
       use Plug.Builder
@@ -89,37 +95,69 @@ defmodule Ewebmachine.Builder.Handlers do
   end
 
   @resource_fun_names [
-    :resource_exists,:service_available,:is_authorized,:forbidden,:allow_missing_post,:malformed_request,:known_methods,
-    :base_uri,:uri_too_long,:known_content_type,:valid_content_headers,:valid_entity_length,:options,:allowed_methods,
-    :delete_resource,:delete_completed,:post_is_create,:create_path,:process_post,:content_types_provided,
-    :content_types_accepted,:charsets_provided,:encodings_provided,:variances,:is_conflict,:multiple_choices,
-    :previously_existed,:moved_permanently,:moved_temporarily,:last_modified,:expires,:generate_etag, :ping, :finish_request
+    :resource_exists,
+    :service_available,
+    :is_authorized,
+    :forbidden,
+    :allow_missing_post,
+    :malformed_request,
+    :known_methods,
+    :base_uri,
+    :uri_too_long,
+    :known_content_type,
+    :valid_content_headers,
+    :valid_entity_length,
+    :options,
+    :allowed_methods,
+    :delete_resource,
+    :delete_completed,
+    :post_is_create,
+    :create_path,
+    :process_post,
+    :content_types_provided,
+    :content_types_accepted,
+    :charsets_provided,
+    :encodings_provided,
+    :variances,
+    :is_conflict,
+    :multiple_choices,
+    :previously_existed,
+    :moved_permanently,
+    :moved_temporarily,
+    :last_modified,
+    :expires,
+    :generate_etag,
+    :ping,
+    :finish_request
   ]
-  defp sig_to_sigwhen({:when,_,[{name,_,params},guard]}), do: {name,params,guard}
-  defp sig_to_sigwhen({name,_,params}) when is_list(params), do: {name,params,true}
-  defp sig_to_sigwhen({name,_,_}), do: {name,[quote(do: _),quote(do: _)],true}
+  defp sig_to_sigwhen({:when, _, [{name, _, params}, guard]}), do: {name, params, guard}
+  defp sig_to_sigwhen({name, _, params}) when is_list(params), do: {name, params, true}
+  defp sig_to_sigwhen({name, _, _}), do: {name, [quote(do: _), quote(do: _)], true}
 
-  defp handler_quote(name,body,guard,conn_match,state_match) do
-    conn_match = case var_in_patterns?(conn_match, :conn) do
-      true -> conn_match
-      false -> quote(do: unquote(conn_match) = var!(conn))
-    end
+  defp handler_quote(name, body, guard, conn_match, state_match) do
+    conn_match =
+      case var_in_patterns?(conn_match, :conn) do
+        true -> conn_match
+        false -> quote(do: unquote(conn_match) = var!(conn))
+      end
 
-    state_match = case var_in_patterns?(state_match, :state) do
-      true -> state_match
-      false -> quote(do: unquote(state_match) = var!(state))
-    end
+    state_match =
+      case var_in_patterns?(state_match, :state) do
+        true -> state_match
+        false -> quote(do: unquote(state_match) = var!(state))
+      end
 
     quote do
-      @resource_handlers Map.put(@resource_handlers,unquote(name),__MODULE__)
+      @resource_handlers Map.put(@resource_handlers, unquote(name), __MODULE__)
       def unquote(name)(unquote(conn_match), unquote(state_match)) when unquote(guard) do
         res = unquote(body)
-        wrap_response(res,var!(conn),var!(state))
+        wrap_response(res, var!(conn), var!(state))
       end
     end
   end
-  defp handler_quote(name,body) do
-    handler_quote(name,body,true,quote(do: _),quote(do: _))
+
+  defp handler_quote(name, body) do
+    handler_quote(name, body, true, quote(do: _), quote(do: _))
   end
 
   defp var_in_patterns?(ast, name) do
@@ -160,23 +198,27 @@ defmodule Ewebmachine.Builder.Handlers do
   ```
   """
   defmacro defh(signature, do_block) do
-    {name, [conn_match,state_match], guard} = sig_to_sigwhen(signature)
+    {name, [conn_match, state_match], guard} = sig_to_sigwhen(signature)
     handler_quote(name, do_block[:do], guard, conn_match, state_match)
   end
 
-  for resource_fun_name<-@resource_fun_names do
-    Code.eval_quoted(quote do
-      @doc "see `Ewebmachine.Handlers.#{unquote(resource_fun_name)}/2`"
-      defmacro unquote(resource_fun_name)(do_block) do
-        name = unquote(resource_fun_name)
-        handler_quote(name,do_block[:do])
-      end
-    end, [], __ENV__)
+  for resource_fun_name <- @resource_fun_names do
+    Code.eval_quoted(
+      quote do
+        @doc "see `Ewebmachine.Handlers.#{unquote(resource_fun_name)}/2`"
+        defmacro unquote(resource_fun_name)(do_block) do
+          name = unquote(resource_fun_name)
+          handler_quote(name, do_block[:do])
+        end
+      end,
+      [],
+      __ENV__
+    )
   end
 
   @doc false
-  def wrap_response({_,%Plug.Conn{},_}=tuple,_,_), do: tuple
-  def wrap_response(r,conn,state), do: {r,conn,state}
+  def wrap_response({_, %Plug.Conn{}, _} = tuple, _, _), do: tuple
+  def wrap_response(r, conn, state), do: {r, conn, state}
 
   @doc """
   Shortcut macro for :
@@ -193,9 +235,9 @@ defmodule Ewebmachine.Builder.Handlers do
       # same as returning :
       {true,conn,%{id: "arnaud", current_user: %User{id: "arnaud"}}}
   """
-  defmacro pass(response,update_state) do
+  defmacro pass(response, update_state) do
     quote do
-      {unquote(response),var!(conn),Enum.into(unquote(update_state),var!(state))}
+      {unquote(response), var!(conn), Enum.into(unquote(update_state), var!(state))}
     end
   end
 end

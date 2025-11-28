@@ -6,13 +6,13 @@ defmodule Ewebmachine.Core do
   ## allows this conversion to be clean imitating the DSL of Basho.
   @moduledoc false
 
-  @spec v3(Plug.Conn.t, any) :: Plug.Conn.t
+  @spec v3(Plug.Conn.t(), any) :: Plug.Conn.t()
   def v3(conn, user_state) do
     try do
       {_, conn, _} = v3b13(Ewebmachine.Log.debug_init(conn), user_state)
       conn
     catch
-      :throw, {:halt,conn} -> conn
+      :throw, {:halt, conn} -> conn
     end
   end
 
@@ -20,15 +20,17 @@ defmodule Ewebmachine.Core do
   decision v3b13(conn, state) do
     case resource_call(conn, state, :ping) do
       {:pong, conn, state} ->
-	v3b13b(conn, state);
+        v3b13b(conn, state)
+
       {_, conn, state} ->
-	respond(conn, state, 503)
+        respond(conn, state, 503)
     end
   end
 
   ## "see `v3b13/2`"
   decision v3b13b(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :service_available)
+
     if reply do
       v3b12(conn, state)
     else
@@ -39,6 +41,7 @@ defmodule Ewebmachine.Core do
   ## "Known method?"
   decision v3b12(conn, state) do
     {methods, conn, state} = resource_call(conn, state, :known_methods)
+
     if method(conn) in methods do
       v3b11(conn, state)
     else
@@ -49,7 +52,8 @@ defmodule Ewebmachine.Core do
   ## "URI too long?"
   decision v3b11(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :uri_too_long)
-    if reply  do
+
+    if reply do
       respond(conn, state, 414)
     else
       v3b10(conn, state)
@@ -59,10 +63,11 @@ defmodule Ewebmachine.Core do
   ## "Method allowed?"
   decision v3b10(conn, state) do
     {methods, conn, state} = resource_call(conn, state, :allowed_methods)
+
     if method(conn) in methods do
       v3b9(conn, state)
     else
-      conn = set_resp_headers(conn, %{"allow" => Enum.join(methods,",")})
+      conn = set_resp_headers(conn, %{"allow" => Enum.join(methods, ",")})
       respond(conn, state, 405)
     end
   end
@@ -82,19 +87,23 @@ defmodule Ewebmachine.Core do
       {:not_validated, conn, state} ->
         case Base.decode64(get_header_val(conn, "content-md5")) do
           {:ok, checksum} ->
-	    case compute_body_md5(conn) do
-	      ^checksum ->
-		v3b9b(conn, state);
-	      _ ->
-		respond(conn, state, 400)
-	    end
+            case compute_body_md5(conn) do
+              ^checksum ->
+                v3b9b(conn, state)
+
+              _ ->
+                respond(conn, state, 400)
+            end
+
           _ ->
-	    respond(conn, state, 400)
+            respond(conn, state, 400)
         end
+
       {false, conn, state} ->
-	respond(conn, state, 400)
+        respond(conn, state, 400)
+
       {_, conn, state} ->
-	v3b9b(conn, state)
+        v3b9b(conn, state)
     end
   end
 
@@ -102,9 +111,10 @@ defmodule Ewebmachine.Core do
   decision v3b9b(conn, state) do
     case resource_call(conn, state, :malformed_request) do
       {true, conn, state} ->
-	respond(conn, state, 400)
+        respond(conn, state, 400)
+
       {false, conn, state} ->
-	v3b8(conn, state)
+        v3b8(conn, state)
     end
   end
 
@@ -112,10 +122,11 @@ defmodule Ewebmachine.Core do
   decision v3b8(conn, state) do
     case resource_call(conn, state, :is_authorized) do
       {true, conn, state} ->
-	v3b7(conn, state)
+        v3b7(conn, state)
+
       {auth_head, conn, state} ->
         conn = set_resp_header(conn, "www-authenticate", to_string(auth_head))
-	respond(conn, state, 401)
+        respond(conn, state, 401)
     end
   end
 
@@ -123,15 +134,17 @@ defmodule Ewebmachine.Core do
   decision v3b7(conn, state) do
     case resource_call(conn, state, :forbidden) do
       {true, conn, state} ->
-	respond(conn, state, 403);
+        respond(conn, state, 403)
+
       {false, conn, state} ->
-	v3b6(conn, state)
+        v3b6(conn, state)
     end
   end
 
   ## "Okay Content-* Headers?"
   decision v3b6(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :valid_content_headers)
+
     if reply do
       v3b5(conn, state)
     else
@@ -142,6 +155,7 @@ defmodule Ewebmachine.Core do
   ## "Known Content-Type?"
   decision v3b5(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :known_content_type)
+
     if reply do
       v3b4(conn, state)
     else
@@ -152,6 +166,7 @@ defmodule Ewebmachine.Core do
   ## "Req Entity Too Large?"
   decision v3b4(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :valid_entity_length)
+
     if reply do
       v3b3(conn, state)
     else
@@ -162,38 +177,43 @@ defmodule Ewebmachine.Core do
   ## "OPTIONS?"
   decision v3b3(conn, state) do
     case method(conn) do
-      "OPTIONS"->
+      "OPTIONS" ->
         {hdrs, conn, state} = resource_call(conn, state, :options)
         conn = set_resp_headers(conn, hdrs)
         respond(conn, state, 200)
+
       _ ->
-	v3c3(conn, state)
+        v3c3(conn, state)
     end
   end
 
   ## "Accept exists?"
   decision v3c3(conn, state) do
     {ct_provided, conn, state} = resource_call(conn, state, :content_types_provided)
-    p_types = for {type,_fun} <- ct_provided, do: normalize_mtype(type)
+    p_types = for {type, _fun} <- ct_provided, do: normalize_mtype(type)
+
     case get_header_val(conn, "accept") do
       nil ->
-	conn = set_metadata(conn, :'content-type', hd(p_types))
-	v3d4(conn, state)
+        conn = set_metadata(conn, :"content-type", hd(p_types))
+        v3d4(conn, state)
+
       _ ->
-	v3c4(conn, state)
+        v3c4(conn, state)
     end
   end
 
   ## "Acceptable media type available?"
   decision v3c4(conn, state) do
     {ct_provided, conn, state} = resource_call(conn, state, :content_types_provided)
-    p_types = for {type,_fun} <- ct_provided, do: normalize_mtype(type)
+    p_types = for {type, _fun} <- ct_provided, do: normalize_mtype(type)
+
     case choose_media_type(p_types, get_header_val(conn, "accept")) do
       nil ->
-	respond(conn, state, 406)
+        respond(conn, state, 406)
+
       type ->
-	conn = set_metadata(conn, :'content-type', type)
-	v3d4(conn, state)
+        conn = set_metadata(conn, :"content-type", type)
+        v3d4(conn, state)
     end
   end
 
@@ -209,6 +229,7 @@ defmodule Ewebmachine.Core do
   ## "Acceptable Language available? %% WMACH-46 (do this as proper conneg)"
   decision v3d5(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :language_available)
+
     if reply do
       v3e5(conn, state)
     else
@@ -220,12 +241,15 @@ defmodule Ewebmachine.Core do
   decision v3e5(conn, state) do
     case get_header_val(conn, "accept-charset") do
       nil ->
-	{charset, conn, state} = choose_charset(conn, state, "*")
-	case charset do
-	  nil -> respond(conn, state, 406);
-	  _   -> v3f6(conn, state)
-	end
-      _ -> v3e6(conn, state)
+        {charset, conn, state} = choose_charset(conn, state, "*")
+
+        case charset do
+          nil -> respond(conn, state, 406)
+          _ -> v3f6(conn, state)
+        end
+
+      _ ->
+        v3e6(conn, state)
     end
   end
 
@@ -233,27 +257,32 @@ defmodule Ewebmachine.Core do
   decision v3e6(conn, state) do
     accept = get_header_val(conn, "accept-charset")
     {charset, conn, state} = choose_charset(conn, state, accept)
+
     case charset do
-      nil -> respond(conn, state, 406);
-      _   -> v3f6(conn, state)
+      nil -> respond(conn, state, 406)
+      _ -> v3f6(conn, state)
     end
   end
 
   ## Accept-Encoding exists?
   ## also, set content-type header here, now that charset is chosen)
   decision v3f6(conn, state) do
-    {type, subtype, params} = get_metadata(conn, :'content-type')
-    char = get_metadata(conn, :'chosen-charset')
-    params = char && Map.put(params, :charset, char) || params
-    conn = set_resp_header(conn, "content-type", format_mtype({type,subtype,params}))
+    {type, subtype, params} = get_metadata(conn, :"content-type")
+    char = get_metadata(conn, :"chosen-charset")
+    params = (char && Map.put(params, :charset, char)) || params
+    conn = set_resp_header(conn, "content-type", format_mtype({type, subtype, params}))
+
     case get_header_val(conn, "accept-encoding") do
       nil ->
-	{encoding, conn, state} = choose_encoding(conn, state, "identity;q=1.0,*;q=0.5")
-	case encoding do
-	  nil -> respond(conn, state, 406);
-	  _   -> v3g7(conn, state)
-	end
-      _ -> v3f7(conn, state)
+        {encoding, conn, state} = choose_encoding(conn, state, "identity;q=1.0,*;q=0.5")
+
+        case encoding do
+          nil -> respond(conn, state, 406)
+          _ -> v3g7(conn, state)
+        end
+
+      _ ->
+        v3f7(conn, state)
     end
   end
 
@@ -261,9 +290,10 @@ defmodule Ewebmachine.Core do
   decision v3f7(conn, state) do
     accept = get_header_val(conn, "accept-encoding")
     {encoding, conn, state} = choose_encoding(conn, state, accept)
+
     case encoding do
-      nil -> respond(conn, state, 406);
-      _   -> v3g7(conn, state)
+      nil -> respond(conn, state, 406)
+      _ -> v3g7(conn, state)
     end
   end
 
@@ -271,13 +301,16 @@ defmodule Ewebmachine.Core do
   decision v3g7(conn, state) do
     ## his is the first place after all conneg, so set Vary here
     {vars, conn, state} = variances(conn, state)
-    conn = if length(vars) > 0 do
-      set_resp_header(conn, "vary", Enum.join(vars, ","))
-    else
-      conn
-    end
+
+    conn =
+      if length(vars) > 0 do
+        set_resp_header(conn, "vary", Enum.join(vars, ","))
+      else
+        conn
+      end
 
     {reply, conn, state} = resource_call(conn, state, :resource_exists)
+
     if reply do
       v3g8(conn, state)
     else
@@ -307,6 +340,7 @@ defmodule Ewebmachine.Core do
   decision v3g11(conn, state) do
     etags = split_quoted_strings(get_header_val(conn, "if-match"))
     {reply, conn, state} = resource_call(conn, state, :generate_etag)
+
     if reply in etags do
       v3h10(conn, state)
     else
@@ -335,6 +369,7 @@ defmodule Ewebmachine.Core do
   ## "I-UM-S is valid date?"
   decision v3h11(conn, state) do
     iums_date = get_header_val(conn, "if-unmodified-since")
+
     if convert_request_date(iums_date) == :bad_date do
       v3i12(conn, state)
     else
@@ -347,6 +382,7 @@ defmodule Ewebmachine.Core do
     req_date = get_header_val(conn, "if-unmodified-since")
     req_erl_date = convert_request_date(req_date)
     {res_erl_date, conn, state} = resource_call(conn, state, :last_modified)
+
     if res_erl_date > req_erl_date do
       respond(conn, state, 412)
     else
@@ -357,12 +393,14 @@ defmodule Ewebmachine.Core do
   ## "Moved permanently? (apply PUT to different URI)"
   decision v3i4(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :moved_permanently)
+
     case reply do
       {true, moved_uri} ->
-	conn = set_resp_header(conn, "location", moved_uri)
-	respond(conn, state, 301)
+        conn = set_resp_header(conn, "location", moved_uri)
+        respond(conn, state, 301)
+
       false ->
-	v3p3(conn, state)
+        v3p3(conn, state)
     end
   end
 
@@ -395,7 +433,7 @@ defmodule Ewebmachine.Core do
 
   ## "GET or HEAD?"
   decision v3j18(conn, state) do
-    if method(conn) in ["GET","HEAD"] do
+    if method(conn) in ["GET", "HEAD"] do
       respond(conn, state, 304)
     else
       respond(conn, state, 412)
@@ -406,16 +444,18 @@ defmodule Ewebmachine.Core do
   decision v3k5(conn, state) do
     case resource_call(conn, state, :moved_permanently) do
       {{true, moved_uri}, conn, state} ->
-	conn = set_resp_header(conn, "location", moved_uri)
-	respond(conn, state, 301)
+        conn = set_resp_header(conn, "location", moved_uri)
+        respond(conn, state, 301)
+
       {false, conn, state} ->
-	v3l5(conn, state)
+        v3l5(conn, state)
     end
   end
 
   ## "Previously existed?"
   decision v3k7(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :previously_existed)
+
     if reply do
       v3k5(conn, state)
     else
@@ -430,6 +470,7 @@ defmodule Ewebmachine.Core do
     ## provided ETag is a member, we follow the error case out
     ## via v3j18.
     {etag, conn, state} = resource_call(conn, state, :generate_etag)
+
     if etag in etags do
       v3j18(conn, state)
     else
@@ -441,10 +482,11 @@ defmodule Ewebmachine.Core do
   decision v3l5(conn, state) do
     case resource_call(conn, state, :moved_temporarily) do
       {{true, moved_uri}, conn, state} ->
-	conn = set_resp_header(conn, "location", moved_uri)
-	respond(conn, state, 307)
+        conn = set_resp_header(conn, "location", moved_uri)
+        respond(conn, state, 307)
+
       {false, conn, state} ->
-	v3m5(conn, state)
+        v3m5(conn, state)
     end
   end
 
@@ -469,6 +511,7 @@ defmodule Ewebmachine.Core do
   ## "IMS is valid date?"
   decision v3l14(conn, state) do
     ims_date = get_header_val(conn, "if-modified-since")
+
     if convert_request_date(ims_date) == :bad_date do
       v3m16(conn, state)
     else
@@ -478,9 +521,10 @@ defmodule Ewebmachine.Core do
 
   ## "IMS > Now?"
   decision v3l15(conn, state) do
-    now_date_time = :calendar.universal_time
+    now_date_time = :calendar.universal_time()
     req_date = get_header_val(conn, "if-modified-since")
     req_erl_date = convert_request_date(req_date)
+
     if req_erl_date > now_date_time do
       v3m16(conn, state)
     else
@@ -493,6 +537,7 @@ defmodule Ewebmachine.Core do
     req_date = get_header_val(conn, "if-modified-since")
     req_erl_date = convert_request_date(req_date)
     {res_erl_date, conn, state} = resource_call(conn, state, :last_modified)
+
     if !res_erl_date or res_erl_date > req_erl_date do
       v3m16(conn, state)
     else
@@ -512,6 +557,7 @@ defmodule Ewebmachine.Core do
   ## "Server allows POST to missing resource?"
   decision v3m7(conn, state) do
     {amp, conn, state} = resource_call(conn, state, :allow_missing_post)
+
     if amp do
       v3n11(conn, state)
     else
@@ -543,6 +589,7 @@ defmodule Ewebmachine.Core do
 
   decision v3m20b(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :delete_completed)
+
     if reply do
       v3o20(conn, state)
     else
@@ -553,6 +600,7 @@ defmodule Ewebmachine.Core do
   ## "Server allows POST to missing resource?"
   decision v3n5(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :allow_missing_post)
+
     if reply do
       v3n11(conn, state)
     else
@@ -563,30 +611,37 @@ defmodule Ewebmachine.Core do
   ## "Redirect?"
   decision v3n11(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :post_is_create)
+
     if reply do
       {_, conn, state} = accept_helper(conn, state)
       {new_path, conn, state} = resource_call(conn, state, :create_path)
 
-      if is_nil(new_path), do: raise "post_is_create w/o create_path"
-      if !is_binary(new_path), do: raise "create_path not a string (#{inspect new_path})"
+      if is_nil(new_path), do: raise("post_is_create w/o create_path")
+      if !is_binary(new_path), do: raise("create_path not a string (#{inspect(new_path)})")
 
       {base_uri, conn, state} = resource_call(conn, state, :base_uri)
-      base_uri = if String.last(base_uri) == "/" do
-        String.slice(base_uri, 0..-2//1)
-      else
-        base_uri
-      end
-      new_path = if !match?("/"<>_, new_path) do
-        "#{path(conn)}/#{new_path}"
-      else
-        new_path
-      end
 
-      conn = if !get_resp_header(conn, "location") do
-        set_resp_header(conn, "location", base_uri <> new_path)
-      else
-        conn
-      end
+      base_uri =
+        if String.last(base_uri) == "/" do
+          String.slice(base_uri, 0..-2//1)
+        else
+          base_uri
+        end
+
+      new_path =
+        if !match?("/" <> _, new_path) do
+          "#{path(conn)}/#{new_path}"
+        else
+          new_path
+        end
+
+      conn =
+        if !get_resp_header(conn, "location") do
+          set_resp_header(conn, "location", base_uri <> new_path)
+        else
+          conn
+        end
+
       redirect_helper(conn, state)
     else
       {true, conn, state} = resource_call(conn, state, :process_post)
@@ -608,7 +663,8 @@ defmodule Ewebmachine.Core do
   decision v3o14(conn, state) do
     case resource_call(conn, state, :is_conflict) do
       {true, conn, state} ->
-	respond(conn, state, 409)
+        respond(conn, state, 409)
+
       {_, conn, state} ->
         {_, conn, state} = accept_helper(conn, state)
         v3p11(conn, state)
@@ -627,18 +683,18 @@ defmodule Ewebmachine.Core do
   ## Multiple representations?
   ## also where body generation for GET and HEAD is done)
   decision v3o18(conn, state) do
-    if method(conn) in ["GET","HEAD"] do
+    if method(conn) in ["GET", "HEAD"] do
       {etag, conn, state} = resource_call(conn, state, :generate_etag)
       conn = if etag, do: set_resp_header(conn, "etag", quoted_string(etag)), else: conn
 
-      ct = get_metadata(conn, :'content-type')
+      ct = get_metadata(conn, :"content-type")
 
       {lm, conn, state} = resource_call(conn, state, :last_modified)
       conn = if lm, do: set_resp_header(conn, "last-modified", rfc1123_date(lm)), else: conn
       {exp, conn, state} = resource_call(conn, state, :expires)
       conn = if exp, do: set_resp_header(conn, "expires", rfc1123_date(exp)), else: conn
       {ct_provided, conn, state} = resource_call(conn, state, :content_types_provided)
-      f = Enum.find_value(ct_provided, fn {t,f} -> normalize_mtype(t) == ct && f end)
+      f = Enum.find_value(ct_provided, fn {t, f} -> normalize_mtype(t) == ct && f end)
       {body, conn, state} = resource_call(conn, state, f)
       {body, conn, state} = encode_body(conn, state, body)
       conn = set_resp_body(conn, body)
@@ -650,6 +706,7 @@ defmodule Ewebmachine.Core do
 
   decision v3o18b(conn, state) do
     {mc, conn, state} = resource_call(conn, state, :multiple_choices)
+
     if mc do
       respond(conn, state, 300)
     else
@@ -669,6 +726,7 @@ defmodule Ewebmachine.Core do
   ## "Conflict?"
   decision v3p3(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :is_conflict)
+
     if reply do
       respond(conn, state, 409)
     else
@@ -694,16 +752,20 @@ defmodule Ewebmachine.Core do
     {enc_provided, conn, state} = resource_call(conn, state, :encodings_provided)
     accept = if length(ct_provided) < 2, do: [], else: ["Accept"]
     accept_enc = if length(enc_provided) < 2, do: [], else: ["Accept-Encoding"]
-    {accept_char, conn, state} = case resource_call(conn, state, :charsets_provided) do
-				   {:no_charset, c, s} ->
-				     {[], c, s}
-				   {charset, c, s} ->
-				     if length(charset) < 2 do
-				       {[], c, s}
-				     else
-				       {["Accept-Charset"], c, s}
-				     end
-				 end
+
+    {accept_char, conn, state} =
+      case resource_call(conn, state, :charsets_provided) do
+        {:no_charset, c, s} ->
+          {[], c, s}
+
+        {charset, c, s} ->
+          if length(charset) < 2 do
+            {[], c, s}
+          else
+            {["Accept-Charset"], c, s}
+          end
+      end
+
     {variances, conn, state} = resource_call(conn, state, :variances)
     {accept ++ accept_enc ++ accept_char ++ variances, conn, state}
   end
@@ -714,16 +776,17 @@ defmodule Ewebmachine.Core do
     conn = set_metadata(conn, :mediaparams, h_params)
     {ct_accepted, conn, state} = resource_call(conn, state, :content_types_accepted)
 
-    mtfun = Enum.find_value(ct_accepted, fn {accept,f} ->
-      fuzzy_mt_match(ct,normalize_mtype(accept)) && f
-    end)
+    mtfun =
+      Enum.find_value(ct_accepted, fn {accept, f} ->
+        fuzzy_mt_match(ct, normalize_mtype(accept)) && f
+      end)
 
     if mtfun do
       {_reply, conn, state} = resource_call(conn, state, mtfun)
       encode_body_if_set(conn, state)
     else
       {_, conn, _} = respond(conn, state, 415)
-      throw {:halt, conn}
+      throw({:halt, conn})
     end
   end
 
@@ -739,26 +802,43 @@ defmodule Ewebmachine.Core do
   end
 
   def encode_body(conn, state, body) do
-    chosen_cset = get_metadata(conn, :'chosen-charset')
-    {charsetter, conn, state} = case resource_call(conn, state, :charsets_provided) do
-				  {:no_charset, c, s} ->
-				    {&(&1), c, s}
-				  {cp, c, s} ->
-				    cs = Enum.find_value(cp, fn {c, f} ->
-				      (to_string(c) == chosen_cset) && f
-				    end) || &(&1)
-				    {cs, c, s}
-				end
-    chosen_enc = get_metadata(conn, :'content-encoding')
+    chosen_cset = get_metadata(conn, :"chosen-charset")
+
+    {charsetter, conn, state} =
+      case resource_call(conn, state, :charsets_provided) do
+        {:no_charset, c, s} ->
+          {& &1, c, s}
+
+        {cp, c, s} ->
+          cs =
+            Enum.find_value(cp, fn {c, f} ->
+              to_string(c) == chosen_cset && f
+            end) || (& &1)
+
+          {cs, c, s}
+      end
+
+    chosen_enc = get_metadata(conn, :"content-encoding")
     {enc_provided, conn, state} = resource_call(conn, state, :encodings_provided)
-    encoder = Enum.find_value(enc_provided,
-      fn {enc,f} -> (to_string(enc) == chosen_enc) && f end) || &(&1)
-    body = case body do
-	     body when is_binary(body) or is_list(body) ->
-	       body |> IO.iodata_to_binary |> charsetter.() |> encoder.()
-	     _->
-	       body |> Stream.map(&IO.iodata_to_binary/1) |> Stream.map(charsetter) |> Stream.map(encoder)
-	   end
+
+    encoder =
+      Enum.find_value(
+        enc_provided,
+        fn {enc, f} -> to_string(enc) == chosen_enc && f end
+      ) || (& &1)
+
+    body =
+      case body do
+        body when is_binary(body) or is_list(body) ->
+          body |> IO.iodata_to_binary() |> charsetter.() |> encoder.()
+
+        _ ->
+          body
+          |> Stream.map(&IO.iodata_to_binary/1)
+          |> Stream.map(charsetter)
+          |> Stream.map(encoder)
+      end
+
     {body, conn, state}
   end
 
@@ -766,28 +846,35 @@ defmodule Ewebmachine.Core do
     {enc_provided, conn, state} = resource_call(conn, state, :encodings_provided)
     encs = for {enc, _} <- enc_provided, do: to_string(enc)
     chosen_enc = choose_encoding(encs, acc_enc_hdr)
-    conn = if chosen_enc !== "identity" do
-      set_resp_header(conn, "content-encoding", chosen_enc)
-    else
-      conn
-    end
-    conn = set_metadata(conn, :'content-encoding', chosen_enc)
+
+    conn =
+      if chosen_enc !== "identity" do
+        set_resp_header(conn, "content-encoding", chosen_enc)
+      else
+        conn
+      end
+
+    conn = set_metadata(conn, :"content-encoding", chosen_enc)
     {chosen_enc, conn, state}
   end
 
   def choose_charset(conn, state, acc_char_hdr) do
     case resource_call(conn, state, :charsets_provided) do
       {:no_charset, conn, state} ->
-	{:no_charset, conn, state}
+        {:no_charset, conn, state}
+
       {cl, conn, state} ->
-        charsets = for {cset,_f} <- cl, do: to_string(cset)
-	charset = choose_charset(charsets, acc_char_hdr)
-        conn = if (charset) do
-          set_metadata(conn, :'chosen-charset', charset)
-	else
-	  conn
-        end
-	{charset, conn, state}
+        charsets = for {cset, _f} <- cl, do: to_string(cset)
+        charset = choose_charset(charsets, acc_char_hdr)
+
+        conn =
+          if charset do
+            set_metadata(conn, :"chosen-charset", charset)
+          else
+            conn
+          end
+
+        {charset, conn, state}
     end
   end
 
@@ -796,25 +883,27 @@ defmodule Ewebmachine.Core do
       if !get_resp_header(conn, "location") do
         raise "Response had do_redirect but no Location"
       else
-	respond(conn, state, 303)
+        respond(conn, state, 303)
       end
     else
-      	v3p11(conn, state)
+      v3p11(conn, state)
     end
   end
 
   def respond(conn, state, code) do
-    {conn, state} = if (code == 304) do
-      conn = remove_resp_header(conn, "content-type")
-      {etag, conn, state} = resource_call(conn, state, :generate_etag)
-      conn = if etag, do: set_resp_header(conn, "etag", quoted_string(etag)), else: conn
+    {conn, state} =
+      if code == 304 do
+        conn = remove_resp_header(conn, "content-type")
+        {etag, conn, state} = resource_call(conn, state, :generate_etag)
+        conn = if etag, do: set_resp_header(conn, "etag", quoted_string(etag)), else: conn
 
-      {exp, conn, state} = resource_call(conn, state, :expires)
-      conn = if exp, do: set_resp_header(conn, "expires", rfc1123_date(exp)), else: conn
-      {conn, state}
-    else
-      {conn, state}
-    end
+        {exp, conn, state} = resource_call(conn, state, :expires)
+        conn = if exp, do: set_resp_header(conn, "expires", rfc1123_date(exp)), else: conn
+        {conn, state}
+      else
+        {conn, state}
+      end
+
     conn = set_response_code(conn, code)
     resource_call(conn, state, :finish_request)
   end

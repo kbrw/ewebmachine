@@ -100,30 +100,45 @@ defmodule Ewebmachine.Builder.Resources do
   end
 
   defmacro __before_compile__(_env) do
-    wm_routes =  Module.get_attribute __CALLER__.module, :wm_routes
-    route_matches = for {route,wm_module,init_block}<-Enum.reverse(wm_routes) do
-      quote do
-        Plug.Router.match unquote(route) do
-          init = unquote(init_block)
-          var!(conn) = put_private(var!(conn),:machine_init,init)
-          unquote(wm_module).call(var!(conn),[])
+    wm_routes = Module.get_attribute(__CALLER__.module, :wm_routes)
+
+    route_matches =
+      for {route, wm_module, init_block} <- Enum.reverse(wm_routes) do
+        quote do
+          Plug.Router.match unquote(route) do
+            init = unquote(init_block)
+            var!(conn) = put_private(var!(conn), :machine_init, init)
+            unquote(wm_module).call(var!(conn), [])
+          end
         end
       end
-    end
-    final_match = if !match?({"/*"<>_,_,_},hd(wm_routes)),
-      do: quote(do: Plug.Router.match _ do var!(conn) end)
+
+    final_match =
+      if !match?({"/*" <> _, _, _}, hd(wm_routes)) do
+        quote(
+          do:
+            Plug.Router.match _ do
+              var!(conn)
+            end
+        )
+      end
+
     quote do
       unquote_splicing(route_matches)
       unquote(final_match)
     end
   end
 
-  defp remove_first(":"<>e), do: e
-  defp remove_first("*"<>e), do: e
+  defp remove_first(":" <> e), do: e
+  defp remove_first("*" <> e), do: e
   defp remove_first(e), do: e
 
-  defp route_as_mod(route), do:
-    (route |> String.split("/") |> Enum.map(& &1 |> remove_first |> String.capitalize) |> Enum.join)
+  defp route_as_mod(route) do
+    route
+    |> String.split("/")
+    |> Enum.map(&(&1 |> remove_first |> String.capitalize()))
+    |> Enum.join()
+  end
 
   @doc ~S"""
   Create a webmachine handler plug and use it on `:resource_match` when path matches
@@ -154,14 +169,20 @@ defmodule Ewebmachine.Builder.Resources do
   ```
 
   """
-  defmacro resource({:__aliases__, _, route_aliases},route,do: init_block, after: body) do
-    resource_quote(Module.concat([__CALLER__.module|route_aliases]),route,init_block,body)
-  end
-  defmacro resource(route,do: init_block, after: body) do
-    resource_quote(Module.concat(__CALLER__.module,"EWM"<>route_as_mod(route)),route,init_block,body)
+  defmacro resource({:__aliases__, _, route_aliases}, route, do: init_block, after: body) do
+    resource_quote(Module.concat([__CALLER__.module | route_aliases]), route, init_block, body)
   end
 
-  def resource_quote(wm_module,route,init_block,body) do
+  defmacro resource(route, do: init_block, after: body) do
+    resource_quote(
+      Module.concat(__CALLER__.module, "EWM" <> route_as_mod(route)),
+      route,
+      init_block,
+      body
+    )
+  end
+
+  def resource_quote(wm_module, route, init_block, body) do
     quote do
       @wm_routes {unquote(route), unquote(wm_module), unquote(Macro.escape(init_block))}
 
@@ -175,21 +196,29 @@ defmodule Ewebmachine.Builder.Resources do
 
   alias Ewebmachine.Plug.ErrorAsException
   alias Ewebmachine.Plug.ErrorAsForward
+
   defmacro resources_plugs(opts \\ []) do
-    {errorplug,errorplug_params} = cond do
-      opts[:error_as_exception]->{ErrorAsException,[]}
-      (forward_pattern=opts[:error_forwarding])->{ErrorAsForward,[forward_pattern: forward_pattern]}
-      true -> {false,[]}
-    end
+    {errorplug, errorplug_params} =
+      cond do
+        opts[:error_as_exception] ->
+          {ErrorAsException, []}
+
+        forward_pattern = opts[:error_forwarding] ->
+          {ErrorAsForward, [forward_pattern: forward_pattern]}
+
+        true ->
+          {false, []}
+      end
+
     quote do
       plug :resource_match
       plug Ewebmachine.Plug.Run
-      if unquote(opts[:nomatch_404]), do: plug :wm_notset_404
-      if unquote(errorplug), do: plug(unquote(errorplug),unquote(errorplug_params))
+      if unquote(opts[:nomatch_404]), do: plug(:wm_notset_404)
+      if unquote(errorplug), do: plug(unquote(errorplug), unquote(errorplug_params))
       plug Ewebmachine.Plug.Send
 
-      defp wm_notset_404(%{state: :unset}=conn,_), do: resp(conn,404,"")
-      defp wm_notset_404(conn,_), do: conn
+      defp wm_notset_404(%{state: :unset} = conn, _), do: resp(conn, 404, "")
+      defp wm_notset_404(conn, _), do: conn
     end
   end
 end

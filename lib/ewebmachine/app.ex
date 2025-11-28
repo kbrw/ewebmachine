@@ -1,10 +1,14 @@
 defmodule Ewebmachine.App do
-  @moduledoc false 
+  @moduledoc false
   use Application
-  def start(_,_) do
-    Supervisor.start_link([
-      Ewebmachine.Log,
-      Ewebmachine.Events
-    ], strategy: :one_for_one)
+
+  def start(_, _) do
+    Supervisor.start_link(
+      [
+        Ewebmachine.Log,
+        Ewebmachine.Events
+      ],
+      strategy: :one_for_one
+    )
   end
 end

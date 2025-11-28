@@ -105,10 +105,13 @@ Create a simple supervision tree with only the Cowboy server adapter spec.
 ```elixir
 defmodule MyApp do
   use Application
-  def start(_type, _args), do:
-    Supervisor.start_link([
-        Plug.Cowboy.child_spec(:http,FullApi,[], port: 4000)
-      ], strategy: :one_for_one)
+
+  def start(_type, _args) do
+    Supervisor.start_link(
+      [Plug.Cowboy.child_spec(:http, FullApi, [], port: 4000)],
+      strategy: :one_for_one
+    )
+  end
 end
 ```
 

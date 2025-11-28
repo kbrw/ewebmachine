@@ -18,13 +18,13 @@ defmodule Ewebmachine.Mixfile do
       docs: docs(),
       deps: deps(),
       description: @description,
-      package: package(),
+      package: package()
     ]
   end
 
   def application do
     [
-      mod: { Ewebmachine.App, [] },
+      mod: {Ewebmachine.App, []},
       extra_applications: [:inets],
       env: []
     ]
@@ -36,12 +36,12 @@ defmodule Ewebmachine.Mixfile do
       extras: [
         "CHANGELOG.md": [title: "Changelog"],
         "README.md": [title: "Overview"],
-        "pages/demystify_dsl.md": [title: "Demystify Ewebmachine DSL"],
+        "pages/demystify_dsl.md": [title: "Demystify Ewebmachine DSL"]
       ],
       main: "readme",
       source_url: git_repository(),
       # We need to git tag with the corresponding format.
-      source_ref: "v#{version()}",
+      source_ref: "v#{version()}"
     ]
   end
 
@@ -59,11 +59,21 @@ defmodule Ewebmachine.Mixfile do
       links: %{
         "GitHub" => git_repository(),
         "Doc" => "http://hexdocs.pm/ewebmachine",
-        "Changelog" => "https://hexdocs.pm/ewebmachine/changelog.html",
+        "Changelog" => "https://hexdocs.pm/ewebmachine/changelog.html"
       },
       maintainers: ["Arnaud Wetzel", "Yurii Rashkovskii", "Jean Parpaillon"],
       licenses: ["MIT"],
-      files: ["lib", "priv", "mix.exs", "README*", "templates", "LICENSE*", "CHANGELOG*", "examples"],
+      files: [
+        "lib",
+        "priv",
+        "mix.exs",
+        "README*",
+        "templates",
+        "LICENSE*",
+        "CHANGELOG*",
+        "examples",
+        ".formatter.exs"
+      ]
     ]
   end
 
