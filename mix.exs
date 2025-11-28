@@ -38,6 +38,7 @@ defmodule Ewebmachine.Mixfile do
         "README.md": [title: "Overview"],
         "pages/demystify_dsl.md": [title: "Demystify Ewebmachine DSL"]
       ],
+      formatters: ["html"],
       main: "readme",
       source_url: git_repository(),
       # We need to git tag with the corresponding format.
