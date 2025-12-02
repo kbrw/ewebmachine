@@ -42,7 +42,6 @@ defmodule Ewebmachine.Handlers do
   - `expires/2`
   - `generate_etag/2`
   - `validate_content_checksum/2`
-  - `ping/2`
   - Body-producing function, see `to_html/2` (but any function name can be
     used, as referenced by `content_types_provided/2`
   - POST/PUT processing function, see `from_json/2` (but any function name can be
@@ -422,12 +421,11 @@ defmodule Ewebmachine.Handlers do
   @spec validate_content_checksum(conn, state) :: {:not_validated | boolean | halt, conn, state}
   def validate_content_checksum(conn, state), do: {:not_validated, conn, state}
 
-  @doc """
-  Must be present and returning `pong` to prove that handlers are
-  well linked to the automate
-  """
-  @spec ping(conn, state) :: {:pang | :pong | halt, conn, state}
-  def ping(conn, state), do: {:pang, conn, state}
+  if Mix.env() == :test do
+    @doc false
+    @spec ping(conn, state) :: {:pang | :pong, conn, state}
+    def ping(conn, state), do: {:pang, conn, state}
+  end
 
   @doc """
   Last handler, always called. Response is ignored except if it is a `halt`.

@@ -40,6 +40,7 @@ defmodule Ewebmachine.Mixfile do
       ],
       formatters: ["html"],
       main: "readme",
+      skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
       source_url: git_repository(),
       # We need to git tag with the corresponding format.
       source_ref: "v#{version()}"

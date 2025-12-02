@@ -9,6 +9,12 @@
   `Ewebmachine.Plug.Send` now implement the `Plug` behaviour. Nothing changed in
   their implementation.
 
+### Removed
+
+- Publicly exposed function and macro intended for testing purposes:
+    - `Ewebmachine.Handlers.ping/2` (function)
+    - `Ewebmachine.Builder.Handlers.ping/1` (macro)
+
 ## [2.3.3] (2025-09-22)
 
 ### Changed

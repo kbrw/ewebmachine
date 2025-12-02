@@ -101,7 +101,10 @@ defmodule Ewebmachine.Builder.Handlers do
       import Ewebmachine.Builder.Handlers
       @before_compile Ewebmachine.Builder.Handlers
       @resource_handlers %{}
-      ping do: :pong
+
+      if Mix.env() == :test do
+        defh ping(_, _), do: :pong
+      end
     end
   end
 
@@ -138,7 +141,6 @@ defmodule Ewebmachine.Builder.Handlers do
     :last_modified,
     :expires,
     :generate_etag,
-    :ping,
     :finish_request
   ]
   defp sig_to_sigwhen({:when, _, [{name, _, params}, guard]}), do: {name, params, guard}

@@ -6,29 +6,33 @@ defmodule Ewebmachine.Core do
   ## allows this conversion to be clean imitating the DSL of Basho.
   @moduledoc false
 
+  initial_decision =
+    if Mix.env() == :test,
+      do: :v3b13_test,
+      else: :v3b13
+
   @spec v3(Plug.Conn.t(), any) :: Plug.Conn.t()
   def v3(conn, user_state) do
     try do
-      {_, conn, _} = v3b13(Ewebmachine.Log.debug_init(conn), user_state)
+      {_, conn, _} = unquote(initial_decision)(Ewebmachine.Log.debug_init(conn), user_state)
       conn
     catch
       :throw, {:halt, conn} -> conn
     end
   end
 
-  ## "Service Available"
-  decision v3b13(conn, state) do
+  decision v3b13_test(conn, state) do
     case resource_call(conn, state, :ping) do
       {:pong, conn, state} ->
-        v3b13b(conn, state)
+        v3b13(conn, state)
 
       {_, conn, state} ->
         respond(conn, state, 503)
     end
   end
 
-  ## "see `v3b13/2`"
-  decision v3b13b(conn, state) do
+  ## "Service Available"
+  decision v3b13(conn, state) do
     {reply, conn, state} = resource_call(conn, state, :service_available)
 
     if reply do
