@@ -1,8 +1,19 @@
 defmodule Ewebmachine.Plug.ErrorAsForward do
   @moduledoc """
-  This plug take an argument `forward_pattern` (default to `"/error/:status"`),
-  and, when the current response status is an error, simply forward to a `GET`
-  to the path defined by the pattern and this status.
+  Sets the `path_info` on errornous HTTP status code to forward the request to
+  another plug.
+
+  If the `conn`'s `status` is higher than `399` , the `conn`'s `path_info` is
+  set to the `forward_pattern`, the `state` sets to `:unset`, and the `method`
+  to `GET`.
+
+  Usefull is you want to have a generic route error handler downstream in the
+  pipeline.
+
+  ## Options
+
+  * `forward_pattern` - sets the redirection path. The `:status` will be
+    replaced by the `conn`'s `status`. Defaults to `/error/:status`.
   """
   @behaviour Plug
 

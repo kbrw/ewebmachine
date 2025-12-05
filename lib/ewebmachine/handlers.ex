@@ -1,87 +1,50 @@
 defmodule Ewebmachine.Handlers do
-  @type conn :: Plug.Conn.t()
-  @type state :: any
-  @type halt :: {:halt, 200..599}
-
   @moduledoc """
-  Implement the functions described below to make decisions in the HTTP decision tree:
+  Provides the default implementation for each resource handler.
 
-  ![](./assets/http_diagram.png)
-
-  - `service_available/2`
-  - `resource_exists/2`
-  - `is_authorized/2`
-  - `forbidden/2`
-  - `allow_missing_post/2`
-  - `malformed_request/2`
-  - `uri_too_long/2`
-  - `known_content_type/2`
-  - `valid_content_headers/2`
-  - `valid_entity_length/2`
-  - `options/2`
-  - `allowed_methods/2`
-  - `known_methods/2`
-  - `content_types_provided/2`
-  - `content_types_accepted/2`
-  - `delete_resource/2`
-  - `delete_completed/2`
-  - `post_is_create/2`
-  - `create_path/2`
-  - `base_uri/2`
-  - `process_post/2`
-  - `language_available/2`
-  - `charsets_provided/2`
-  - `encodings_provided/2`
-  - `variances/2`
-  - `is_conflict/2`
-  - `multiple_choices/2`
-  - `previously_existed/2`
-  - `moved_permanently/2`
-  - `moved_temporarily/2`
-  - `last_modified/2`
-  - `expires/2`
-  - `generate_etag/2`
-  - `validate_content_checksum/2`
-  - Body-producing function, see `to_html/2` (but any function name can be
-    used, as referenced by `content_types_provided/2`
-  - POST/PUT processing function, see `from_json/2` (but any function name can be
-    used, as referenced by `content_types_accepted/2`
-
-  All the handlers have the same signature:
+  An handler is a function with the following signature:
   ```elixir
   @spec handler(conn, state) :: {response :: any | {:halt, 200..599}, conn, state}
     when conn: Plug.Conn.t(), state: var()
   ```
 
-  where every handler implementation:
+  An handler:
+  * can update the `conn`
 
-  - can change or halt the plug `conn` passed as argument
-  - can change the user state object passed from on handler to another in its arguments
-  - returns something which will make decision in the HTTP decision tree (see
-    documentation of functions in this module to see expected results and effects)
-  - can return `{:halt, 200..599}` to end the ewebmachine automate execution,
-    but do not `halt` the `conn`, so the plug pipeline can continue.
+    > ##### Halting the connection {: .top}
+    >
+    > Halting the `conn` will not stop the execution of the HTTP decision tree
+    > of Ewebmachine.
 
-  So each handler implementation is actually a "plug" returning a response giving
-  information allowing to make the good response code and path in the HTTP
-  specification.
+  * can change the state
 
-  ## Usage ##
+    > #### Ewebmachine and `state` {: .info}
+    > Ewebmachine never modifies the `state` is only pass it between handlers.
 
-  The following modules will help you to construct these handlers and use them:
+  * should return a response which will influence the HTTP decision tree. If an
+    handler returns `{:halt, 200.599}`, the execution of the HTTP decision tree
+    is immediatly stopped (the `conn` is not halted though).
 
-  - `Ewebmachine.Builder.Handlers` gives you macros and helpers to define the
-    handlers and automatically create the plug to add them to your `conn.private[:resource_handlers]`
-  - `Ewebmachine.Plug.Run` run the HTTP decision tree executing the handler
-     implementations described in its `conn.private[:resource_handlers]`. The
-     initial user `state` is taken in `conn.private[:machine_init]`
+    Each handler has its own specific response type, see each handler below.
+
+  Handler functions are usually defined inside a
+  `Ewebmachine.Builder.Resources.resource/2` via the macros defined by the
+  `Ewebmachine.Builder.Handlers` module.
+
+  A set of common handlers can also be defined see the documentation of
+  `Ewebmachine.Builder.Handlers`.
   """
+
+  @type conn :: Plug.Conn.t()
+  @type state :: any
+  @type halt :: {:halt, 200..599}
 
   @doc """
   Returning non-true values will result in `503 Service Unavailable`.
 
   Default: `true`
   """
+  @doc group: :handler
   @spec service_available(conn, state) :: {boolean | halt, conn, state}
   def service_available(conn, state), do: {true, conn, state}
 
@@ -90,6 +53,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `true`
   """
+  @doc group: :handler
   @spec resource_exists(conn, state) :: {boolean | halt, conn, state}
   def resource_exists(conn, state), do: {true, conn, state}
 
@@ -101,6 +65,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `true`
   """
+  @doc group: :handler
   @spec is_authorized(conn, state) :: {boolean | halt, conn, state}
   def is_authorized(conn, state), do: {true, conn, state}
 
@@ -109,6 +74,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec forbidden(conn, state) :: {boolean | halt, conn, state}
   def forbidden(conn, state), do: {false, conn, state}
 
@@ -117,6 +83,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec allow_missing_post(conn, state) :: {boolean | halt, conn, state}
   def allow_missing_post(conn, state), do: {false, conn, state}
 
@@ -125,6 +92,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec malformed_request(conn, state) :: {boolean | halt, conn, state}
   def malformed_request(conn, state), do: {false, conn, state}
 
@@ -133,6 +101,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec uri_too_long(conn, state) :: {boolean | halt, conn, state}
   def uri_too_long(conn, state), do: {false, conn, state}
 
@@ -141,6 +110,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `true`
   """
+  @doc group: :handler
   @spec known_content_type(conn, state) :: {boolean | halt, conn, state}
   def known_content_type(conn, state), do: {true, conn, state}
 
@@ -149,6 +119,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `true`
   """
+  @doc group: :handler
   @spec valid_content_headers(conn, state) :: {boolean | halt, conn, state}
   def valid_content_headers(conn, state), do: {true, conn, state}
 
@@ -157,6 +128,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec valid_entity_length(conn, state) :: {boolean | halt, conn, state}
   def valid_entity_length(conn, state), do: {true, conn, state}
 
@@ -165,6 +137,7 @@ defmodule Ewebmachine.Handlers do
   this function is expected to be a list of pairs representing header
   names and values that should appear in the response.
   """
+  @doc group: :handler
   @spec options(conn, state) :: {[{String.t(), String.t()}] | halt, conn, state}
   def options(conn, state), do: {[], conn, state}
 
@@ -174,6 +147,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `["GET", "HEAD"]`
   """
+  @doc group: :handler
   @spec allowed_methods(conn, state) :: {[String.t()] | halt, conn, state}
   def allowed_methods(conn, state), do: {["GET", "HEAD"], conn, state}
 
@@ -182,6 +156,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `["GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT", "OPTIONS"]`
   """
+  @doc group: :handler
   @spec known_methods(conn, state) :: {[String.t()] | halt, conn, state}
   def known_methods(conn, state) do
     {["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "TRACE", "CONNECT", "OPTIONS"], conn,
@@ -189,29 +164,27 @@ defmodule Ewebmachine.Handlers do
   end
 
   @doc """
-  This should return a key value tuple enumerable where the key is
-  the content-type format and the value is an atom naming the
-  function which can provide a resource representation in that media
-  type. Content negotiation is driven by this return value. For
-  example, if a client request includes an Accept header with a value
-  that does not appear as a first element in any of the return
-  tuples, then a 406 Not Acceptable will be
-  sent.
+  This should return a `{key, value}` tuple enumerable where the key is the
+  content-type format and the value is an atom naming the function which can
+  provide a resource representation in that media type. Content negotiation is
+  driven by this return value. For example, if a client request includes an
+  `Accept` header with a value that does not appear as a first element in any
+  of the return tuples, then a 406 Not Acceptable will be sent.
 
   Default: `[{"text/html", to_html}]`
   """
+  @doc group: :handler
   @spec content_types_provided(conn, state) ::
           {[{String.Chars.t(), atom}] | Enum.t() | halt, conn, state}
   def content_types_provided(conn, state), do: {[{"text/html", :to_html}], conn, state}
 
   @doc """
   This is used similarly to `content_types_provided/2`, except that it is
-  for incoming resource representations -- for example, PUT requests.
-  Handler functions usually want to use `Plug.read_body(conn)` to
-  access the incoming request body.
+  for incoming resource representations. For instance, `PUT` requests.
 
   Default: `[]`
   """
+  @doc group: :handler
   @spec content_types_accepted(conn, state) ::
           {[{String.Chars.t(), atom}] | Enum.t() | halt, conn, state}
   def content_types_accepted(conn, state), do: {[], conn, state}
@@ -220,6 +193,7 @@ defmodule Ewebmachine.Handlers do
   This is called when a DELETE request should be enacted, and should
   return `true` if the deletion succeeded.
   """
+  @doc group: :handler
   @spec delete_resource(conn, state) :: {boolean | halt, conn, state}
   def delete_resource(conn, state), do: {false, conn, state}
 
@@ -228,6 +202,7 @@ defmodule Ewebmachine.Handlers do
   should return `false` if the deletion was accepted but cannot yet be
   guaranteed to have finished.
   """
+  @doc group: :handler
   @spec delete_completed(conn, state) :: {boolean | halt, conn, state}
   def delete_completed(conn, state), do: {true, conn, state}
 
@@ -241,6 +216,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec post_is_create(conn, state) :: {boolean | halt, conn, state}
   def post_is_create(conn, state), do: {false, conn, state}
 
@@ -250,6 +226,7 @@ defmodule Ewebmachine.Handlers do
   `post_is_create/2` returns `true`. The Path returned should be a valid
   URI part.
   """
+  @doc group: :handler
   @spec create_path(conn, state) :: {nil | String.t() | halt, conn, state}
   def create_path(conn, state), do: {nil, conn, state}
 
@@ -257,6 +234,7 @@ defmodule Ewebmachine.Handlers do
   The base URI used in the location header on resource creation (when
   `post_is_create/2` is `true`), will be prepended to the `create_path/2`
   """
+  @doc group: :handler
   @spec base_uri(conn, state) :: {String.t() | halt, conn, state}
   def base_uri(conn, state),
     do: {"#{conn.scheme}://#{conn.host}#{port_suffix(conn.scheme, conn.port)}", conn, state}
@@ -269,6 +247,7 @@ defmodule Ewebmachine.Handlers do
   If `post_is_create/2` returns `false`, then this will be called to
   process any POST requests. If it succeeds, it should return `true`.
   """
+  @doc group: :handler
   @spec process_post(conn, state) :: {boolean | halt, conn, state}
   def process_post(conn, state), do: {false, conn, state}
 
@@ -277,6 +256,7 @@ defmodule Ewebmachine.Handlers do
   `Plug.Conn.get_resp_header(conn,"accept-language")` is not
   available.
   """
+  @doc group: :handler
   @spec language_available(conn, state) :: {boolean | halt, conn, state}
   def language_available(conn, state), do: {true, conn, state}
 
@@ -288,6 +268,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `:no_charset`
   """
+  @doc group: :handler
   @spec charsets_provided(conn, state) ::
           {:no_charset | [{String.Chars.t(), (binary -> binary)}] | Enum.t() | halt, conn, state}
   def charsets_provided(conn, state), do: {:no_charset, conn, state}
@@ -310,6 +291,7 @@ defmodule Ewebmachine.Handlers do
 
    Default: `[{"identity", fn X-> X end}]`
   """
+  @doc group: :handler
   @spec encodings_provided(conn, state) ::
           {[{String.Chars.t(), (binary -> binary)}] | Enum.t() | halt, conn, state}
   def encodings_provided(conn, state), do: {[{"identity", & &1}], conn, state}
@@ -326,6 +308,7 @@ defmodule Ewebmachine.Handlers do
 
   Default : `[]`
   """
+  @doc group: :handler
   @spec variances(conn, state) :: {[String.t()] | halt, conn, state}
   def variances(conn, state), do: {[], conn, state}
 
@@ -334,6 +317,7 @@ defmodule Ewebmachine.Handlers do
 
   Default : `false`
   """
+  @doc group: :handler
   @spec is_conflict(conn, state) :: {boolean | halt, conn, state}
   def is_conflict(conn, state), do: {false, conn, state}
 
@@ -345,6 +329,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec multiple_choices(conn, state) :: {boolean | halt, conn, state}
   def multiple_choices(conn, state), do: {false, conn, state}
 
@@ -355,6 +340,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec previously_existed(conn, state) :: {boolean | halt, conn, state}
   def previously_existed(conn, state), do: {false, conn, state}
 
@@ -364,6 +350,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec moved_permanently(conn, state) :: {boolean | halt, conn, state}
   def moved_permanently(conn, state), do: {false, conn, state}
 
@@ -373,6 +360,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `false`
   """
+  @doc group: :handler
   @spec moved_temporarily(conn, state) :: {boolean | halt, conn, state}
   def moved_temporarily(conn, state), do: {false, conn, state}
 
@@ -383,6 +371,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `nil`
   """
+  @doc group: :handler
   @spec last_modified(conn, state) ::
           {nil
            | {{day :: integer, month :: integer, year :: integer},
@@ -395,6 +384,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `nil`
   """
+  @doc group: :handler
   @spec expires(conn, state) ::
           {nil
            | {{day :: integer, month :: integer, year :: integer},
@@ -408,6 +398,7 @@ defmodule Ewebmachine.Handlers do
 
   Default: `nil`
   """
+  @doc group: :handler
   @spec generate_etag(conn, state) :: {nil | binary | halt, conn, state}
   def generate_etag(conn, state), do: {nil, conn, state}
 
@@ -418,6 +409,7 @@ defmodule Ewebmachine.Handlers do
 
   Useful if content-md5 validation does not imply only raw md5 hash
   """
+  @doc group: :handler
   @spec validate_content_checksum(conn, state) :: {:not_validated | boolean | halt, conn, state}
   def validate_content_checksum(conn, state), do: {:not_validated, conn, state}
 
@@ -430,6 +422,7 @@ defmodule Ewebmachine.Handlers do
   @doc """
   Last handler, always called. Response is ignored except if it is a `halt`.
   """
+  @doc group: :handler
   @spec finish_request(conn, state) :: {any | halt, conn, state}
   def finish_request(conn, state), do: {false, conn, state}
 

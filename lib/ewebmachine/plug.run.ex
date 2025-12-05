@@ -1,26 +1,17 @@
 defmodule Ewebmachine.Plug.Run do
   @moduledoc ~S"""
-  Plug passing your `conn` through the HTTP decision
-  tree to fill its status and response.
+  A plug which runs the HTTP decision tree with the set handlers defined by a
+  matching `Ewebmachine.Builder.Resources.resource/2`.
+
+  The initial user state is taken from the `do` block of the
+  `Ewebmachine.Builder.Resources.resource/2` macro.
 
   ![](./assets/http_diagram.png)
 
-  This plug does not send the HTTP result, instead the `conn`
-  result of this plug must be sent with the plug
-  `Ewebmachine.Plug.Send`. This is useful to customize the Ewebmachine result
-  after the run, for instance to customize the error body (void by default).
+  This plug does not send the response to let additional plugs customize the
+  result.
 
-  - Decisions are make according to handlers set in `conn.private[:resource_handlers]`
-    (`%{handler_name: handler_module}`) where `handler_name` is one
-    of the handler function of `Ewebmachine.Handlers` and
-    `handler_module` is the module implementing it.
-  - Initial user state (second parameter of handler function) is
-    taken from `conn.private[:machine_init]`
-
-  `Ewebmachine.Builder.Handlers` `:add_handler` plug allows you to
-  set these parameters in order to use this Plug.
-
-  A successfull run will reset the resource handlers and initial state.
+  To send the response, use the `Ewebmachine.Plug.Send` after this one.
   """
 
   @behaviour Plug

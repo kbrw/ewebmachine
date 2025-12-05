@@ -1,7 +1,8 @@
 defmodule Ewebmachine.Plug.Send do
   @moduledoc ~S"""
-  Calling this plug will send the response and halt the connection
-  pipeline if the `conn` has passed through an `Ewebmachine.Plug.Run`.
+  A plug which sends the response and halts the pipeline if the state is `:set`.
+
+  Should be used in a plug pipeline after the `Ewebmachine.Plug.Run` plug.
   """
   import Plug.Conn
 

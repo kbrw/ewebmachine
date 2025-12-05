@@ -1,16 +1,12 @@
 defmodule Ewebmachine do
-  @moduledoc File.read!("README.md")
-             |> String.replace(~r/^See the \[generated.*$/m, "")
-             |> String.replace(~r/^.*Build Status.*$/m, "")
-             |> String.replace(
-               "https://raw.githubusercontent.com/kbrw/ewebmachine/master/doc/",
-               ""
-             )
+  @moduledoc """
+  Contains utility functions to work with Ewebmachine private fields set inside `conn`
+  """
 
   alias Plug.Conn
 
   @doc """
-  Set :resp_redirect to `true`
+  Sets `:resp_redirect` to `true`
   """
   @spec do_redirect(Plug.Conn.t()) :: Plug.Conn.t()
   def do_redirect(conn) do
@@ -18,16 +14,18 @@ defmodule Ewebmachine do
   end
 
   @doc """
-  Returns request body from request (requires fetching body first)
+  Returns request body from request (requires fetching body first).
+
+  See `fetch_req_body/2` to fetch the body.
   """
   @spec req_body(Plug.Conn.t()) :: binary
   def req_body(conn), do: conn.private[:req_body]
 
   @doc """
-  Fetch request body
+  Fetches the request body.
 
   Options:
-  * max_length: maximum bytes to fetch (default: 1_000_000)
+  * `max_length` - maximum bytes to fetch. Defaults to: `1_000_000`.
   """
   @spec fetch_req_body(Plug.Conn.t(), Enumerable.t()) :: Plug.Conn.t()
   def fetch_req_body(conn, opts) do

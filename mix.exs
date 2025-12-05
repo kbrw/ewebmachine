@@ -33,13 +33,35 @@ defmodule Ewebmachine.Mixfile do
   defp docs do
     [
       assets: %{"assets" => "assets"},
+      default_group_for_doc: fn
+        %{group: :handler} -> "Handlers"
+        _ -> nil
+      end,
       extras: [
         "CHANGELOG.md": [title: "Changelog"],
-        "README.md": [title: "Overview"],
+        "README.md": [title: "Ewebmachine"],
         "pages/demystify_dsl.md": [title: "Demystify Ewebmachine DSL"]
       ],
       formatters: ["html"],
+      groups_for_modules: [
+        # Ungrouped modules
+        #
+        # Ewebmachine
+        # Ewebmachine.Builder.Handlers
+        # Ewebmachine.Builder.Resources
+        # Ewebmachine.Core.Utils
+        # Ewebmachine.Handlers
+
+        Plugs: [
+          Ewebmachine.Plug.Debug,
+          Ewebmachine.Plug.ErrorAsException,
+          Ewebmachine.Plug.ErrorAsForward,
+          Ewebmachine.Plug.Send,
+          Ewebmachine.Plug.Run
+        ]
+      ],
       main: "readme",
+      nest_modules_by_prefix: [Ewebmachine.Plug],
       skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
       source_url: git_repository(),
       # We need to git tag with the corresponding format.

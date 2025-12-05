@@ -1,31 +1,28 @@
 defmodule Ewebmachine.Plug.Debug do
   @moduledoc ~S"""
-  A plug providing a debug UI for the decision tree available at `/wm_debug`
+  A plug providing a debug UI for the decision tree available at `/wm_debug`.
 
   Add it before `Ewebmachine.Plug.Run` in your plug pipeline when you
   want debugging facilities.
 
-  ```
-  if Mix.env == :dev, do: plug Ewebmachine.Plug.Debug
+  ```elixir
+  if Mix.env() == :dev, do: plug Ewebmachine.Plug.Debug
   ```
 
-  Then go to `http://youhost:yourport/wm_debug`, you will see the
-  request list since the launch of your server. Click on any to get
-  the ewebmachine debugging UI. The list will be automatically
-  updated on new query.
+  Then go to `http://<host>:<port>/wm_debug`, you will see the request list
+  since the launch of your server. Click on any to get the Ewebmachine
+  debugging UI. The list will be automatically updated on new query.
 
-  The ewebmachine debugging UI:
-  - shows you the HTTP decision path taken by the request to the response. Every
-  - the red decisions are the one where decisions differs from the
-    default one because of a handler implementation:
-    - click on them, then select any handler available in the right
-      tab to see the `conn`, `state` inputs of the handler and the
-      response.
-  - The response and request right tab shows you the request and
-    result at the end of the ewebmachine run.
-  - click on "auto redirect on new query" and at every request, your
-    browser will navigate to the debugging UI of the new request (you
-    can still use back/next to navigate through requests)
+  The Ewebmachine debugging UI shows you the path taken by the request through
+  the decision tree. Decisions where user defined handlers are called are
+  highlighted in red. Clicking on decision will open a panel with three tabs:
+  * `Q`: contains the received http request
+  * `R`: contains the sent http response
+  * `D`: displays the `conn` and the `state` before and after the handler
+    call. The handler's response is also displayed.
+
+  The `auto redirect on new query` will at every request redirect your browser
+  to the new request debugging UI.
 
   ![Debug UI example](./assets/debug_ui.png)
   """

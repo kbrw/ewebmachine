@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Project documentation was rewrote
 - `Ewebmachine.Plug.Debug`, `Ewebmachine.Plug.ErrorAsException`,
   `Ewebmachine.Plug.ErrorAsForward`, `Ewebmachine.Plug.Run`, and
   `Ewebmachine.Plug.Send` now implement the `Plug` behaviour. Nothing changed in

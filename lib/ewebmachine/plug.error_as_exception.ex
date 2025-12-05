@@ -1,8 +1,12 @@
 defmodule Ewebmachine.Plug.ErrorAsException do
   @moduledoc """
-  This plug checks the current response status. If it is an error, raise a plug
-  exception with the status code and the HTTP error name as the message. If
-  this response body is not void, use it as the exception message.
+  Raises an `#{__MODULE__}` exception on errornous HTTP status code.
+
+  If the `conn`'s state is `:set` and its `status` is higher than `399`, this
+  plug raises a `#{__MODULE__}` exception.
+
+  The `conn`'s `resp_body` is used if not empty as the exception's message,
+  otherwise the http code's label is used.
   """
   @behaviour Plug
 
