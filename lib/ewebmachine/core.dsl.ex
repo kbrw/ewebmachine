@@ -2,18 +2,6 @@ defmodule Ewebmachine.Core.DSL do
   ## Macros and helpers defining the DSL for the Ewebmachine decision
   ## core : for legacy reasons, the module is called 'DSL' while they are
   ## are mostly helper functions.
-  ##
-  ## Changes:
-  ##     Macros hiding `conn` and `user_state` variables have been removed
-  ##     as they can produce unsafe use of these variables if used in
-  ##     structures like if/cond/... which is deprecated in elixir 1.3
-
-  ## Usage : 
-
-  ##     decision mydecision(conn, user_state, args...) do # def mydecision(conn, user_state, arg...)
-  ##       ...debug_decision
-  ##       ...exec body
-  ##     end
   @moduledoc false
 
   alias Plug.Conn
