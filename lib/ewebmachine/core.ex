@@ -1,10 +1,12 @@
 defmodule Ewebmachine.Core do
-  use Ewebmachine.Core.DSL
 
   ## Basho webmachine Core rewrited in a systematic way to make the
   ## conversion as reliable as possible. The Ewebmachine.Core.DSL
   ## allows this conversion to be clean imitating the DSL of Basho.
   @moduledoc false
+
+  import Ewebmachine.Core.DSL
+  import Ewebmachine.Core.Utils
 
   initial_decision =
     if Mix.env() == :test,

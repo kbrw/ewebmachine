@@ -18,13 +18,6 @@ defmodule Ewebmachine.Core.DSL do
 
   alias Plug.Conn
 
-  defmacro __using__(_opts) do
-    quote do
-      import Ewebmachine.Core.DSL
-      import Ewebmachine.Core.Utils
-    end
-  end
-
   def sig_to_sigwhen({:when, _, [{name, _, params}, guard]}), do: {name, params, guard}
   def sig_to_sigwhen({name, _, params}) when is_list(params), do: {name, params, true}
   def sig_to_sigwhen({name, _, _}), do: {name, [], true}
