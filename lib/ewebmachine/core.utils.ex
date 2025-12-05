@@ -202,11 +202,6 @@ defmodule Ewebmachine.Core.Utils do
   def http_label(504), do: "Gateway Timeout"
   def http_label(505), do: "HTTP Version Not Supported"
 
-  ###
-  ### Priv
-  ###
-  alias Ewebmachine.Compat
-
   defp choose(choices, header, default) do
     ## sorted set of {prio,value}
     prios = prioritized_values(header)
@@ -225,7 +220,8 @@ defmodule Ewebmachine.Core.Utils do
     any_ok = start_prio not in [nil, +0.0]
 
     # remove choices where prio == 0.0
-    {zero_prios, prios} = Compat.Enum.split_with(prios, fn {prio, _} -> prio == +0.0 end)
+    {zero_prios, prios} = Enum.split_with(prios, fn {prio, _} -> prio == +0.0 end)
+
     choices_to_remove = Enum.map(zero_prios, &elem(&1, 1))
     choices = Enum.filter(choices, &(!(String.downcase(&1) in choices_to_remove)))
 
