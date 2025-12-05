@@ -203,6 +203,7 @@ defmodule Ewebmachine.Core.Utils do
   def http_label(505), do: "HTTP Version Not Supported"
 
   defp choose(choices, header, default) do
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Encoding#weighted_accept-encoding_values
     ## sorted set of {prio,value}
     prios = prioritized_values(header)
 
