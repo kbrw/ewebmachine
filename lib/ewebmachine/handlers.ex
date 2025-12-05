@@ -194,11 +194,23 @@ defmodule Ewebmachine.Handlers do
   This is used similarly to `content_types_provided/2`, except that it is
   for incoming resource representations. For instance, `PUT` requests.
 
+  ## POST/PUT processing function
+
+  Functions set inside the `content_types_accepted` handler must have the
+  following signature:
+  ```elixir
+  @spec handler(conn, state) :: {any() | halt, conn, state}
+    when conn: Plug.Conn.t(), state: var()
+  ```
+  They will be called when the request is a `PUT` or when the request is a
+  `POST` and `post_is_create` returns `true`.
+
   Default: `[]`
   """
   @doc group: :handler
   @spec content_types_accepted(conn, state) ::
-          {[{String.Chars.t(), atom}] | Enum.t() | halt, conn, state}
+          {[{String.t(), body_processing_fun}] | halt, conn, state}
+        when body_processing_fun: atom()
   def content_types_accepted(conn, state), do: {[], conn, state}
 
   @doc """

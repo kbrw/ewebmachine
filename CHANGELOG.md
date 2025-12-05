@@ -4,7 +4,8 @@
 
 ### Added
 
-- documentation for the handler given to the `content_types_provided` handler
+- documentation for the handler given to the handlers `content_types_provided`
+  and `content_types_accepted`
 
 ### Changed
 
