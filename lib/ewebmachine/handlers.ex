@@ -458,7 +458,7 @@ defmodule Ewebmachine.Handlers do
   - If the result is an iodata, then it is used as the HTTP response body
   """
   @spec to_html(conn, state) :: {iodata | Enum.t() | halt, conn, state}
-  def to_html(conn, state), do: {"<html><body><h1>Hello World</h1></body></html>", conn, state}
+  def to_html(conn, state), do: {"", conn, state}
 
   @doc """
   Example POST/PUT processing function, function atom name must be referenced

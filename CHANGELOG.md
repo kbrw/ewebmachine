@@ -15,6 +15,8 @@
   `Ewebmachine.Plug.Send` now implement the `Plug` behaviour. Nothing changed in
   their implementation.
 - `Ewebmachine.Builder.Resources.resource_quote/4` is now a private function
+- Default `Ewebmachine.Handlers.to_html/2` handler now respond with an empty
+  string instead of with `"<html><body><h1>Hello World</h1></body></html>"`
 
 ### Removed
 
