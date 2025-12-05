@@ -9,6 +9,7 @@
   `Ewebmachine.Plug.ErrorAsForward`, `Ewebmachine.Plug.Run`, and
   `Ewebmachine.Plug.Send` now implement the `Plug` behaviour. Nothing changed in
   their implementation.
+- `Ewebmachine.Builder.Resources.resource_quote/4` is now a private function
 
 ### Removed
 

@@ -160,7 +160,7 @@ defmodule Ewebmachine.Builder.Resources do
     )
   end
 
-  def resource_quote(wm_module, route, init_block, body) do
+  defp resource_quote(wm_module, route, init_block, body) do
     quote do
       @wm_routes {unquote(route), unquote(wm_module), unquote(Macro.escape(init_block))}
 
