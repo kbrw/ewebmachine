@@ -1,8 +1,9 @@
 defmodule Ewebmachine.Core.DSL do
+  @moduledoc false
+
   ## Macros and helpers defining the DSL for the Ewebmachine decision
   ## core : for legacy reasons, the module is called 'DSL' while they are
   ## are mostly helper functions.
-  @moduledoc false
 
   alias Plug.Conn
 
