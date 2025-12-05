@@ -193,26 +193,29 @@ defmodule Ewebmachine.Builder.Resources do
     not set, it adds the `Ewebmachine.Plug.ErrorAsForward` plug with as
     `:forward_pattern` the given pattern. Defaults to `nil`.
   """
-  alias Ewebmachine.Plug.ErrorAsException
-  alias Ewebmachine.Plug.ErrorAsForward
-
   defmacro resources_plugs(opts \\ []) do
+    alias Ewebmachine.Plug.ErrorAsException
+    alias Ewebmachine.Plug.ErrorAsForward
+
+    {error_as_exception?, opts} = Keyword.pop(opts, :error_as_exception, false)
+    {forward_pattern, opts} = Keyword.pop(opts, :error_as_exception)
+    {nomatch_404?, _} = Keyword.pop(opts, :nomatch_404, false)
+
+    true = is_boolean(error_as_exception?)
+    true = is_binary(forward_pattern) || is_nil(forward_pattern)
+    true = is_boolean(nomatch_404?)
+
     {errorplug, errorplug_params} =
       cond do
-        opts[:error_as_exception] ->
-          {ErrorAsException, []}
-
-        forward_pattern = opts[:error_forwarding] ->
-          {ErrorAsForward, [forward_pattern: forward_pattern]}
-
-        true ->
-          {false, []}
+        error_as_exception? -> {ErrorAsException, []}
+        is_binary(forward_pattern) -> {ErrorAsForward, [forward_pattern: forward_pattern]}
+        true -> {false, []}
       end
 
     quote do
       plug :resource_match
       plug Ewebmachine.Plug.Run
-      if unquote(opts[:nomatch_404]), do: plug(:wm_notset_404)
+      if unquote(nomatch_404?), do: plug(:wm_notset_404)
       if unquote(errorplug), do: plug(unquote(errorplug), unquote(errorplug_params))
       plug Ewebmachine.Plug.Send
 
