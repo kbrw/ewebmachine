@@ -17,6 +17,11 @@
     - `Ewebmachine.Handlers.ping/2` (function)
     - `Ewebmachine.Builder.Handlers.ping/1` (macro)
 
+### Fixed
+
+- Crash when creating an exception `Ewebmachine.Plug.ErrorAsException` with a
+  `resp_body` which isn't a `bitstring`.
+
 ## [2.3.3] (2025-09-22)
 
 ### Changed

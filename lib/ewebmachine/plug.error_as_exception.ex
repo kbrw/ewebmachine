@@ -20,6 +20,7 @@ defmodule Ewebmachine.Plug.ErrorAsException do
   def call(conn, _), do: conn
 
   @impl Exception
+  def exception(%{status: code, resp_body: msg}) when is_bitstring(msg) and byte_size(msg) > 0,
     do: %__MODULE__{plug_status: code, message: msg}
 
   def exception(%{status: code}),
