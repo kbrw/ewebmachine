@@ -817,9 +817,9 @@ defmodule Ewebmachine.Core do
 
         {cp, c, s} ->
           cs =
-            Enum.find_value(cp, fn {c, f} ->
+            Enum.find_value(cp, &Function.identity/1, fn {c, f} ->
               to_string(c) == chosen_cset && f
-            end) || (& &1)
+            end)
 
           {cs, c, s}
       end
@@ -828,10 +828,9 @@ defmodule Ewebmachine.Core do
     {enc_provided, conn, state} = resource_call(conn, state, :encodings_provided)
 
     encoder =
-      Enum.find_value(
-        enc_provided,
-        fn {enc, f} -> to_string(enc) == chosen_enc && f end
-      ) || (& &1)
+      Enum.find_value(enc_provided, &Function.identity/1, fn {enc, f} ->
+        to_string(enc) == chosen_enc && f
+      end)
 
     body =
       case body do
