@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- documentation for the handler given to the `content_types_provided` handler
+
 ### Changed
 
 - Project documentation was rewrote

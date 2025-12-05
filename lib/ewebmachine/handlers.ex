@@ -171,11 +171,23 @@ defmodule Ewebmachine.Handlers do
   `Accept` header with a value that does not appear as a first element in any
   of the return tuples, then a 406 Not Acceptable will be sent.
 
+  ## Body producing function
+
+  Body producing function should have the following signature
+  ```elixir
+  @spec handler(conn, state) :: {iodata() | binary() | Enumerable.t(Plug.Conn.body()) | halt(), conn, state}
+  ```
+
+  If the returned body is an `t:Enumerable.t/1` other than a list, the response
+  will be streamed by the `Ewebmachine.Plug.Send` plug, therefore the
+  enumarable's element needs to be `t:Plug.Conn.body/0`.
+
   Default: `[{"text/html", to_html}]`
   """
   @doc group: :handler
   @spec content_types_provided(conn, state) ::
-          {[{String.Chars.t(), atom}] | Enum.t() | halt, conn, state}
+          {[{String.t(), body_producing_fun}] | halt, conn, state}
+        when body_producing_fun: atom()
   def content_types_provided(conn, state), do: {[{"text/html", :to_html}], conn, state}
 
   @doc """
