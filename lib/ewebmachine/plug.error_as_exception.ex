@@ -19,7 +19,7 @@ defmodule Ewebmachine.Plug.ErrorAsException do
   def call(%{status: code, state: :set} = conn, _) when code > 399, do: raise(__MODULE__, conn)
   def call(conn, _), do: conn
 
-  def exception(%{status: code, resp_body: msg}) when byte_size(msg) > 0,
+  @impl Exception
     do: %__MODULE__{plug_status: code, message: msg}
 
   def exception(%{status: code}),
