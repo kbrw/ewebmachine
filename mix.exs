@@ -1,7 +1,7 @@
 defmodule Ewebmachine.Mixfile do
   use Mix.Project
 
-  def version, do: "2.3.3"
+  def version, do: "2.4.0"
 
   @description """
   Ewebmachine contains macros and plugs to allow you to compose
@@ -18,13 +18,13 @@ defmodule Ewebmachine.Mixfile do
       docs: docs(),
       deps: deps(),
       description: @description,
-      package: package(),
+      package: package()
     ]
   end
 
   def application do
     [
-      mod: { Ewebmachine.App, [] },
+      mod: {Ewebmachine.App, []},
       extra_applications: [:inets],
       env: []
     ]
@@ -32,23 +32,46 @@ defmodule Ewebmachine.Mixfile do
 
   defp docs do
     [
-      assets: "assets",
+      assets: %{"assets" => "assets"},
+      default_group_for_doc: fn
+        %{group: :handler} -> "Handlers"
+        _ -> nil
+      end,
       extras: [
         "CHANGELOG.md": [title: "Changelog"],
-        "README.md": [title: "Overview"],
-        "pages/demystify_dsl.md": [title: "Demystify Ewebmachine DSL"],
+        "README.md": [title: "Ewebmachine"],
+        "pages/demystify_dsl.md": [title: "Demystify Ewebmachine DSL"]
+      ],
+      formatters: ["html"],
+      groups_for_modules: [
+        # Ungrouped modules
+        #
+        # Ewebmachine
+        # Ewebmachine.Builder.Handlers
+        # Ewebmachine.Builder.Resources
+        # Ewebmachine.Core.Utils
+        # Ewebmachine.Handlers
+
+        Plugs: [
+          Ewebmachine.Plug.Debug,
+          Ewebmachine.Plug.ErrorAsException,
+          Ewebmachine.Plug.ErrorAsForward,
+          Ewebmachine.Plug.Send,
+          Ewebmachine.Plug.Run
+        ]
       ],
       main: "readme",
+      nest_modules_by_prefix: [Ewebmachine.Plug],
+      skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
       source_url: git_repository(),
       # We need to git tag with the corresponding format.
-      source_ref: "v#{version()}",
+      source_ref: "v#{version()}"
     ]
   end
 
   defp deps do
     [
       {:plug, "~> 1.10"},
-      {:plug_cowboy, "~> 2.4"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
     ]
@@ -59,11 +82,20 @@ defmodule Ewebmachine.Mixfile do
       links: %{
         "GitHub" => git_repository(),
         "Doc" => "http://hexdocs.pm/ewebmachine",
-        "Changelog" => "https://hexdocs.pm/ewebmachine/changelog.html",
+        "Changelog" => "https://hexdocs.pm/ewebmachine/changelog.html"
       },
       maintainers: ["Arnaud Wetzel", "Yurii Rashkovskii", "Jean Parpaillon"],
       licenses: ["MIT"],
-      files: ["lib", "priv", "mix.exs", "README*", "templates", "LICENSE*", "CHANGELOG*", "examples"],
+      files: [
+        "lib",
+        "priv",
+        "mix.exs",
+        "README*",
+        "templates",
+        "LICENSE*",
+        "CHANGELOG*",
+        ".formatter.exs"
+      ]
     ]
   end
 

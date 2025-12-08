@@ -1,26 +1,33 @@
 defmodule Ewebmachine.Builder.Resources do
   @moduledoc ~S"""
-  `use` this  module will `use Plug.Builder` (so a plug pipeline
-  described with the `plug module_or_function_plug` macro), but gives
-  you a `:resource_match` local function plug which matches routes declared
-  with the `resource/2` macro and execute the plug defined by its body.
+  Provides macros to make endpoints for resources.
 
-  See `Ewebmachine.Builder.Handlers` documentation to see how to
-  contruct these modules (in the `after` block)
+  > #### `use Ewebmachine.Builder.Resources` {: .info}
+  >
+  > When you `use Ewebmachine.Builder.Resources`, it will `use Plug.Router`,
+  > `import Ewebmachine.Builder.Resources`, declare a private function plug
+  > `resource_match` which passes the connection through the `:match` and
+  > `:dispatch` plugs from `Plug`.
 
-  Below a full example :
+  `use Ewebmachine.Builder.Resources` also accept the following option:
+  * `:default_plugs` - which when set to `true`, also add the plugs
+    `:resource_match`, `Ewebmachine.Plug.Run` and `Ewebmachine.Plug.Send`
 
-  ```
+  ## Example
 
+  Multiple resources can be declared inside a single module and will be matched
+  accordingly.
+  ```elixir
   defmodule FullApi do
     use Ewebmachine.Builder.Resources
+
     if Mix.env == :dev, do: plug Ewebmachine.Plug.Debug
-    # pre plug, for instance you can put plugs defining common handlers
+    # Pre plug, for instance you can put plugs defining common handlers
     plug :resource_match
     plug Ewebmachine.Plug.Run
-    # customize ewebmachine result, for instance make an error page handler plug
+    # Customize Ewebmachine result, for instance make an error page handler plug
     plug Ewebmachine.Plug.Send
-    # plug after that will be executed only if no ewebmachine resources has matched
+    # Plug after that will be executed only if no ewebmachine resources has matched
 
     resource "/hello/:name" do %{name: name} after
       plug SomeAdditionnalPlug
@@ -28,55 +35,22 @@ defmodule Ewebmachine.Builder.Resources do
       defh to_xml, do: "<Person><name>#{state.name}</name>"
     end
 
-    resource "/*path" do %{path: Enum.join(path,"/")} after
-      resource_exists do:
-        File.regular?(path state.path)
-      content_types_provided do:
-        [{state.path|>Plug.MIME.path|>default_plain,:to_content}]
-      defh to_content, do:
-        File.stream!(path(state.path),[],300_000_000)
-      defp path(relative), do: "#{:code.priv_dir :ewebmachine_example}/web/#{relative}"
-      defp default_plain("application/octet-stream"), do: "text/plain"
-      defp default_plain(type), do: type
+    resource "/hello/foo/:bar" do %{bar: bar} after
+      content_types_provided do: ['text/plain': :to_text]
+      defh to_text, do: "Foo #{state.bar}"
     end
   end
   ```
 
-  ## Common Plugs macro helper
-
-  As the most common use case is to match resources, run the webmachine
-  automate, then set a 404 if no resource match, then handle error code, then
-  send the response, the `resources_plugs/1` macro allows you to do that.
-
-  For example, if you want to convert all HTTP errors as Exceptions, and
-  consider that all path must be handled and so any non matching path should
-  return a 404 :
-
-      resources_plugs error_as_exception: true, nomatch_404: true
-
-  is equivalent to
-
-      plug :resource_match
-      plug Ewebmachine.Plug.Run
-      plug :wm_notset_404
-      plug Ewebmachine.Plug.ErrorAsException
-      plug Ewebmachine.Plug.Send
-
-      defp wm_notset_404(%{state: :unset}=conn,_), do: resp(conn,404,"")
-      defp wm_notset_404(conn,_), do: conn
-
-  Another example, following plugs must handle non matching paths and errors
-  should be converted into `GET /error/:status` that must be handled by
-  following plugs :
-
-      resources_plugs error_forwarding: "/error/:status"
-
-  is equivalent to
-
-      plug :resource_match
-      plug Ewebmachine.Plug.Run
-      plug Ewebmachine.Plug.ErrorAsForward, forward_pattern: "/error/:status"
-      plug Ewebmachine.Plug.Send
+  > #### Increasing compilation time {: .warning}
+  >
+  > Using many `resource/2` macros inside the same module can significantly
+  > raise the compilation time since it makes a module underneath and if one
+  > depends on another module at compilte time it will need to recompile the
+  > whole file, which the compiler does in a linear maner.
+  >
+  > Splitting a module which uses many `resource/2` will decrease the
+  > compilation time.
   """
   defmacro __using__(opts) do
     quote location: :keep do
@@ -100,68 +74,93 @@ defmodule Ewebmachine.Builder.Resources do
   end
 
   defmacro __before_compile__(_env) do
-    wm_routes =  Module.get_attribute __CALLER__.module, :wm_routes
-    route_matches = for {route,wm_module,init_block}<-Enum.reverse(wm_routes) do
-      quote do
-        Plug.Router.match unquote(route) do
-          init = unquote(init_block)
-          var!(conn) = put_private(var!(conn),:machine_init,init)
-          unquote(wm_module).call(var!(conn),[])
+    wm_routes = Module.get_attribute(__CALLER__.module, :wm_routes)
+
+    route_matches =
+      for {route, wm_module, init_block} <- Enum.reverse(wm_routes) do
+        quote do
+          Plug.Router.match unquote(route) do
+            init = unquote(init_block)
+            var!(conn) = put_private(var!(conn), :machine_init, init)
+            unquote(wm_module).call(var!(conn), [])
+          end
         end
       end
-    end
-    final_match = if !match?({"/*"<>_,_,_},hd(wm_routes)),
-      do: quote(do: Plug.Router.match _ do var!(conn) end)
+
+    final_match =
+      if !match?({"/*" <> _, _, _}, hd(wm_routes)) do
+        quote(
+          do:
+            Plug.Router.match _ do
+              var!(conn)
+            end
+        )
+      end
+
     quote do
       unquote_splicing(route_matches)
       unquote(final_match)
     end
   end
 
-  defp remove_first(":"<>e), do: e
-  defp remove_first("*"<>e), do: e
+  defp remove_first(":" <> e), do: e
+  defp remove_first("*" <> e), do: e
   defp remove_first(e), do: e
 
-  defp route_as_mod(route), do:
-    (route |> String.split("/") |> Enum.map(& &1 |> remove_first |> String.capitalize) |> Enum.join)
+  defp route_as_mod(route) do
+    route
+    |> String.split("/")
+    |> Enum.map(&(&1 |> remove_first |> String.capitalize()))
+    |> Enum.join()
+  end
+
+  @doc """
+  Same as `resource/2` but you can set the module's name.
+
+  ```elixir
+  resource ShortenedRouteName, "/my/route/that/would/generate/a/long/module/name/:id" do
+    # ...
+  end
+  ```
+  """
+  defmacro resource({:__aliases__, _, route_aliases}, route, do: init_block, after: body) do
+    resource_quote(Module.concat([__CALLER__.module | route_aliases]), route, init_block, body)
+  end
 
   @doc ~S"""
-  Create a webmachine handler plug and use it on `:resource_match` when path matches
+  Creates a plug module which is executed on path match.
 
-  - the route will be the matching spec (see Plug.Router.match, string spec only)
-  - do_block will be called on match (so matching bindings will be
-    available) and should return the initial state
-  - after_block will be the webmachine handler plug module body
-    (wrapped with `use Ewebmachine.Builder.Handlers` and `plug
-    :add_handlers` to clean the declaration.
+  The created module will use the `Ewebmachine.Builder.Handlers` module and add
+  the plug `:add_handlers` at the end of it.
 
-  ```
+  See `Plug.Router` for the path specification.
+
+  The macro takes a `do` and an `after`. Both are executed on match. The `do`
+  block is executed to make the initial state. In its scope path bindings are
+  available. The handlers declared in the `after` block are executed by the
+  `Ewebmachine.Plug.Run` plug.
+
+  ## Example
+
+  ```elixir
   resource "/my/route/:commaid" do
-    id = string.split(commaid,",")
+    id = String.split(commaid, ",")
     %{foo: id}
   after
-    plug someadditionnalplug
-    resource_exists do: state.id == ["hello"]
-  end
-
-  resource ShortenedRouteName, "/my/route/that/would/generate/a/long/module/name/:commaid" do
-    id = String.split(commaid,",")
-    %{foo: id}
-  after
-    plug SomeAdditionnalPlug
     resource_exists do: state.id == ["hello"]
   end
   ```
-
   """
-  defmacro resource({:__aliases__, _, route_aliases},route,do: init_block, after: body) do
-    resource_quote(Module.concat([__CALLER__.module|route_aliases]),route,init_block,body)
-  end
-  defmacro resource(route,do: init_block, after: body) do
-    resource_quote(Module.concat(__CALLER__.module,"EWM"<>route_as_mod(route)),route,init_block,body)
+  defmacro resource(route, do: init_block, after: body) do
+    resource_quote(
+      Module.concat(__CALLER__.module, "EWM" <> route_as_mod(route)),
+      route,
+      init_block,
+      body
+    )
   end
 
-  def resource_quote(wm_module,route,init_block,body) do
+  defp resource_quote(wm_module, route, init_block, body) do
     quote do
       @wm_routes {unquote(route), unquote(wm_module), unquote(Macro.escape(init_block))}
 
@@ -173,23 +172,55 @@ defmodule Ewebmachine.Builder.Resources do
     end
   end
 
-  alias Ewebmachine.Plug.ErrorAsException
-  alias Ewebmachine.Plug.ErrorAsForward
+  @doc """
+  Adds common plugs to match resources with Ewebmachine.
+
+  The macro's intent is to cover the most common use case to match resources. To
+  do so it adds the following plug by default:
+  * `:resource_match` which passes the connection through the `:match` and
+    `:dispatch` plugs of `Plug`.
+  * `Ewebmachine.Plug.Run`
+  * `Ewebmachine.Plug.Send`
+
+  Additional processing can be provided for connection which did not match any
+  route or which returns an erroneous http code via the following options:
+  * `:nomatch_404` - if sets to `true` adds a function plug `wm_notset_404`
+    which is case of an `:unset` state respond with a `404` http code. Defaults
+    to `false`.
+  * `:error_as_exception` - if sets to `true` adds the
+    `Ewebmachine.Plug.ErrorAsException` plug. Defaults to `false`.
+  * `:error_forwarding` - when a pattern is given and `:error_as_exception` is
+    not set, it adds the `Ewebmachine.Plug.ErrorAsForward` plug with as
+    `:forward_pattern` the given pattern. Defaults to `nil`.
+  """
   defmacro resources_plugs(opts \\ []) do
-    {errorplug,errorplug_params} = cond do
-      opts[:error_as_exception]->{ErrorAsException,[]}
-      (forward_pattern=opts[:error_forwarding])->{ErrorAsForward,[forward_pattern: forward_pattern]}
-      true -> {false,[]}
-    end
+    alias Ewebmachine.Plug.ErrorAsException
+    alias Ewebmachine.Plug.ErrorAsForward
+
+    {error_as_exception?, opts} = Keyword.pop(opts, :error_as_exception, false)
+    {forward_pattern, opts} = Keyword.pop(opts, :error_as_exception)
+    {nomatch_404?, _} = Keyword.pop(opts, :nomatch_404, false)
+
+    true = is_boolean(error_as_exception?)
+    true = is_binary(forward_pattern) || is_nil(forward_pattern)
+    true = is_boolean(nomatch_404?)
+
+    {errorplug, errorplug_params} =
+      cond do
+        error_as_exception? -> {ErrorAsException, []}
+        is_binary(forward_pattern) -> {ErrorAsForward, [forward_pattern: forward_pattern]}
+        true -> {false, []}
+      end
+
     quote do
       plug :resource_match
       plug Ewebmachine.Plug.Run
-      if unquote(opts[:nomatch_404]), do: plug :wm_notset_404
-      if unquote(errorplug), do: plug(unquote(errorplug),unquote(errorplug_params))
+      if unquote(nomatch_404?), do: plug(:wm_notset_404)
+      if unquote(errorplug), do: plug(unquote(errorplug), unquote(errorplug_params))
       plug Ewebmachine.Plug.Send
 
-      defp wm_notset_404(%{state: :unset}=conn,_), do: resp(conn,404,"")
-      defp wm_notset_404(conn,_), do: conn
+      defp wm_notset_404(%{state: :unset} = conn, _), do: resp(conn, 404, "")
+      defp wm_notset_404(conn, _), do: conn
     end
   end
 end

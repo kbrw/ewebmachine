@@ -1,129 +1,159 @@
 # Ewebmachine [![Build Status](https://github.com/kbrw/ewebmachine/actions/workflows/.github/workflows/build-and-test.yml/badge.svg)](https://github.com/kbrw/ewebmachine/actions/workflows/build-and-test.yml) [![Hex.pm](https://img.shields.io/hexpm/v/ewebmachine.svg)](https://hex.pm/packages/ewebmachine) [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/ewebmachine) ![Hex.pm License](https://img.shields.io/hexpm/l/ewebmachine)
 
 Ewebmachine is a full rewrite with clean DSL and plug integration
-based on Webmachine from basho. This version is not backward compatible with
-the previous one that was only a thin wrapper around webmachine, use the branch
-1.0-legacy to use the old one.
+based on [Webmachine from basho](https://github.com/webmachine/webmachine). 
 
-The principle is to go through the [HTTP decision tree](./assets/http_diagram.png)
-and make decisions according to response of some callbacks called "handlers".
+[Documentation for Ewebmachine is available on
+hexdocs](https://hexdocs.pm/ewebmachine/readme.html).
 
-To do that, the library gives you 5 plugs and 2 plug pipeline builders :
-
-- `Ewebmachine.Plug.Run` go through the HTTP decision tree and fill
-  the `conn` response according to it
-- `Ewebmachine.Plug.Send` is used to send a conn set with `Ewebmachine.Plug.Run`
-- `Ewebmachine.Plug.Debug` gives you a debugging web UI to see the
-  HTTP decision path taken by each request.
-- `Ewebmachine.Plug.ErrorAsException` take a conn with a response set but not
-  send, and throw an exception is the status code is an exception
-- `Ewebmachine.Plug.ErrorAsForward` take a conn with a response set but not
-  send, and forward it changing the request to `GET /error/pattern/:status`
-- `Ewebmachine.Builder.Handlers` gives you helpers macros and a
-  `:add_handler` plug to add `handlers` as defined  in
-  `Ewebmachine.Handlers` to your conn, and set the initial user state.
-- `Ewebmachine.Builder.Resources` gives you a `resource` macro to
-  define at the same time an `Ewebmachine.Builder.Handlers` and the
-  matching spec to use it, and a plug `:resource_match` to do the
-  match and execute the associated plug. The macro `resources_plugs` helps you
-  to define common plug pipeline
-
-## Example usage
+## Installation
 
 ```elixir
-defmodule MyJSONApi do 
+    def deps do
+      [
+        {:ewebmachine, "~> 2.3"}
+      ]
+    end
+```
+
+> [!WARNING]
+> This version is not backward compatible with the previous one that was only a
+> thin wrapper around webmachine, use the branch 1.0-legacy to use the old one.
+
+## Overview
+
+Ewebmachine is an application layer that adds HTTP semantic awareness on top of
+the excellent `Plug` library. Ewebmachine's DSL provides an easy way to work
+with your application's data.
+
+## Core concepts
+
+Ewebmachine comes with a few core concepts:
+* **Resource** (a.k.a. any information that can be named): is declared via the
+  `Ewebmachine.Builder.Resources.resource/2` macro which expands into a plug
+  module inside of which handlers are declared.
+
+* **Handler**: an handler is a function which return value is used by the
+  decision tree. Each handler has its own purpose and helps you make the
+  appropriate response.
+
+* **(HTTP) Decision tree**: process an HTTP connection by routing it through the
+  decision tree where decisions are taken based on a resource's handlers. Its
+  processing flow is described on [this schema](./assets/http_diagram.png)[^1].
+
+With the core concepts in mind let's go through a simple example:
+```elixir
+defmodule App.Api do
+  use Ewebmachine.Builder.Resources
+
+  plug :resource_match
+  plug Ewebmachine.Plug.Run
+  plug Ewebmachine.Plug.Send
+
+  resource "/api/users/:id" do
+    %{user_id: id}
+  after
+    plug App.Api.CommonHandlers
+
+    allowed_methods do: ["GET"]
+
+    resource_exists do
+      case App.User.fetch(state.user_id) do
+        {:ok, user} -> pass(true, json_obj: user)
+        {:error, :not_found} -> false
+      end
+    end
+
+    defh to_json, do: JSON.encode!(state.user)
+  end
+
+  resource "/api/orders/:id" do
+    %{order_id: id}
+  after
+    plug App.Api.CommonHandlers
+
+    allowed_methods do: ["GET"]
+
+    resource_exists do
+      case App.Order.fetch(state.order_id) do
+        {:ok, order} -> pass(true, json_obj: order)
+        {:error, :not_found} -> false
+      end
+    end
+  end
+end
+
+defmodule App.Api.CommonHandlers do
   use Ewebmachine.Builder.Handlers
-  plug :cors
+
   plug :add_handlers, init: %{}
 
   content_types_provided do: ["application/json": :to_json]
-  defh to_json, do: Poison.encode!(state[:json_obj])
 
-  defp cors(conn,_), do: 
-    put_resp_header(conn,"Access-Control-Allow-Origin","*")
+  defh to_json, do: JSON.encode!(state.json_obj)
 end
+```
 
+Let's go through this example by calling the `App.Api` plug module with a fake
+connection:
+```elixir
+conn = Plug.Test.conn("GET", "/api/users/1")
+conn = App.Api.call(conn, [])
+```
 
-defmodule ErrorRoutes do
-  use Ewebmachine.Builder.Resources ; resources_plugs
-  resource "/error/:status" do %{s: elem(Integer.parse(status),0)} after 
-    content_types_provided do: ['text/html': :to_html, 'application/json': :to_json]
-    defh to_html, do: "<h1> Error ! : '#{Ewebmachine.Core.Utils.http_label(state.s)}'</h1>"
-    defh to_json, do: ~s/{"error": #{state.s}, "label": "#{Ewebmachine.Core.Utils.http_label(state.s)}"}/
-    finish_request do: {:halt,state.s}
-  end
-end
+The `App.Api` module is a `Plug.Router` composed of the routes `/api/users/:id`
+and `/api/orders/:id` which are defined via the `resource` macro. When our
+connection enter this plug pipeline it first goes through the `:resource_match`
+plug which calls the plugs `:match` and `:dispatch` defined by `Plug.Router`.
+The `/api/users/:id` path being matched, the connection is dispatched to this
+`resource`.
 
-defmodule FullApi do
-  use Ewebmachine.Builder.Resources
-  if Mix.env == :dev, do: plug Ewebmachine.Plug.Debug
-  resources_plugs error_forwarding: "/error/:status", nomatch_404: true
-  plug ErrorRoutes
+*The resource macro underneath makes a plug module into which the
+`:add_handlers` plug is added*.
 
-  resource "/hello/:name" do %{name: name} after 
-    content_types_provided do: ['application/xml': :to_xml]
-    defh to_xml, do: "<Person><name>#{state.name}</name></Person>"
-  end
+The connection goes through the resource's plug module which contains the
+`App.Api.CommonHandlers` and `:add_handlers` plug.
 
-  resource "/hello/json/:name" do %{name: name} after 
-    plug MyJSONApi #this is also a plug pipeline
-    allowed_methods do: ["GET","DELETE"]
-    delete_resource do: DB.delete(state.name)
+*The `:add_handlers` function plug sets inside the connection the module
+implementing each handler. In this example the `allowed_methods` and
+`resource_exists` handlers will be those of the resource module whereas the
+module used for the definition of the `content_types_provided` handler will be
+`App.Api.CommonHandlers`.*
 
-    defh resource_exists do
-      user = DB.get(state.name)
-      pass(user !== nil, json_obj: user)
-    end
-  end
+The connection continues through the plug pipeline and then enters the
+`Ewebmachine.Plug.Run` plug which executes the decision tree with the set
+handlers. The response is then sent by the `Ewebmachine.Plug.Send` plug.
 
-  resource "/static/*path" do %{path: Enum.join(path,"/")} after
-    resource_exists do:
-      File.regular?(path state.path)
-    content_types_provided do:
-      [{state.path|>Plug.MIME.path|>default_plain,:to_content}]
-    defh to_content, do:
-      File.stream!(path(state.path),[],300_000_000)
-    defp path(relative), do: "#{:code.priv_dir :ewebmachine_example}/web/#{relative}"
-    defp default_plain("application/octet-stream"), do: "text/plain"
-    defp default_plain(type), do: type
+## Serve the plug
+
+Ewebmachine exposes plugs therefore it can be served as any other. As referenced
+by [`Plug` itself](https://hexdocs.pm/plug/readme.html#installation) there is
+two options either `plug_cowboy` or `bandit`.
+
+For instance to serve the previous `App.Api` plug with the `plug_cowboy`:
+```elixir
+defmodule App do
+  use Application
+
+  def start(_type, _args) do
+    children = [Plug.Cowboy.child_spec(:http, App.Api, [], port: 80)]
+
+    Supervisor.start_link(children, strategy: :one_for_one)
   end
 end
 ```
 
 ## Debug UI 
 
-Go to `/wm_debug` to see precedent requests and debug there HTTP
-decision path. The debug UI can be updated automatically on the
-requests.
+By adding the `Ewebmachine.Plug.Debug` plug to the plug pipeline of your
+application you can have access to a debug UI exposed on the `/wm_debug` route.
 
 ![Debug UI example](./assets/debug_ui.png)
-
-## Use Cowboy to serve the plug
-
-Create a simple supervision tree with only the Cowboy server adapter spec.
-
-```elixir
-defmodule MyApp do
-  use Application
-  def start(_type, _args), do:
-    Supervisor.start_link([
-        Plug.Cowboy.child_spec(:http,FullApi,[], port: 4000)
-      ], strategy: :one_for_one)
-end
-```
-
-And add it as your application entry point in your `mix.exs`
-
-```elixir
-def application do
-  [applications: [:logger,:ewebmachine,:cowboy], mod: {MyApp,[]}]
-end
-defp deps, do:
-  [{:ewebmachine, "2.3.2"}, {:cowboy, "~> 1.0"}]
-```
 
 # CONTRIBUTING
 
 Hi, and thank you for wanting to contribute.
 Please refer to the centralized informations available at: https://github.com/kbrw#contributing
 
+[^1]: All credits for this schema goes to Alan Dean and Justin Sheehy. See
+    [here](https://github.com/webmachine/webmachine/wiki/Diagram).

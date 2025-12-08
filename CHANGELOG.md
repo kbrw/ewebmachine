@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased
+
+## [2.4.0] (2025-12-08)
+
+### Added
+
+- documentation for the handler given to the handlers `content_types_provided`
+  and `content_types_accepted`
+
+### Changed
+
+- Project documentation was rewrote
+- `Ewebmachine.Plug.Debug`, `Ewebmachine.Plug.ErrorAsException`,
+  `Ewebmachine.Plug.ErrorAsForward`, `Ewebmachine.Plug.Run`, and
+  `Ewebmachine.Plug.Send` now implement the `Plug` behaviour. Nothing changed in
+  their implementation.
+- `Ewebmachine.Builder.Resources.resource_quote/4` is now a private function
+- Default `Ewebmachine.Handlers.to_html/2` handler now respond with an empty
+  string instead of with `"<html><body><h1>Hello World</h1></body></html>"`
+
+### Removed
+
+- Publicly exposed function and macro intended for testing purposes:
+    - `Ewebmachine.Handlers.ping/2` (function)
+    - `Ewebmachine.Builder.Handlers.ping/1` (macro)
+- Ewebmachine no longer depends on `plug_cowboy`
+
+### Fixed
+
+- Crash when creating an exception `Ewebmachine.Plug.ErrorAsException` with a
+  `resp_body` which isn't a `bitstring`.
+
 ## [2.3.3] (2025-09-22)
 
 ### Changed
