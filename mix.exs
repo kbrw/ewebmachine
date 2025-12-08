@@ -1,7 +1,7 @@
 defmodule Ewebmachine.Mixfile do
   use Mix.Project
 
-  def version, do: "2.3.3"
+  def version, do: "2.4.0"
 
   @description """
   Ewebmachine contains macros and plugs to allow you to compose

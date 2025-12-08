@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [2.4.0] (2025-12-08)
+
 ### Added
 
 - documentation for the handler given to the handlers `content_types_provided`
