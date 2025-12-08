@@ -94,7 +94,6 @@ defmodule Ewebmachine.Mixfile do
         "templates",
         "LICENSE*",
         "CHANGELOG*",
-        "examples",
         ".formatter.exs"
       ]
     ]
