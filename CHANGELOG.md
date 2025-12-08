@@ -23,6 +23,7 @@
 - Publicly exposed function and macro intended for testing purposes:
     - `Ewebmachine.Handlers.ping/2` (function)
     - `Ewebmachine.Builder.Handlers.ping/1` (macro)
+- Ewebmachine no longer depends on `plug_cowboy`
 
 ### Fixed
 

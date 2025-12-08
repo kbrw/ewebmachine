@@ -124,13 +124,15 @@ The connection continues through the plug pipeline and then enters the
 `Ewebmachine.Plug.Run` plug which executes the decision tree with the set
 handlers. The response is then sent by the `Ewebmachine.Plug.Send` plug.
 
-## Use Cowboy to serve the plug
+## Serve the plug
 
-Given that module using the `Ewebmachine.Builder.Resources` becomes a plug, they
-can be exposed, for instance via the Cowboy server:
+Ewebmachine exposes plugs therefore it can be served as any other. As referenced
+by [`Plug` itself](https://hexdocs.pm/plug/readme.html#installation) there is
+two options either `plug_cowboy` or `bandit`.
 
+For instance to serve the previous `App.Api` plug with the `plug_cowboy`:
 ```elixir
-defmodule MyApp do
+defmodule App do
   use Application
 
   def start(_type, _args) do
